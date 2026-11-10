@@ -12,7 +12,7 @@ Plain HTML page (pin the version; never an unpinned URL):
 
 ```html
 <script type="module">
-import { tune } from "https://cdn.jsdelivr.net/gh/itsHendri/tune-panel@0.1.0/tune-panel.js";
+import { tune } from "https://cdn.jsdelivr.net/gh/itsHendri/tune-panel@0.1.1/tune-panel.js";
 
 const CFG = { max: 12, spring: { stiffness: 420, damping: 20, mass: 1 }, push: true };   // what the page reads
 
@@ -23,7 +23,7 @@ tune(CFG, { max: { min: 0, max: 20, step: 0.5, unit: "°" } }, { title: "Hover t
 Vite or React app:
 
 ```bash
-npm i -D github:itsHendri/tune-panel#0.1.0
+npm i -D github:itsHendri/tune-panel#0.1.1
 ```
 
 ```js
@@ -70,7 +70,8 @@ The element `tune()` returns has `values`, `set(path, value)`, `refresh()` (afte
 
 ## Keys and pointer
 
-* Drag a bar anywhere to change it; a click jumps there. Shift is fine (a tenth of a step), Alt is coarse (ten steps).
+* Press anywhere on a bar and the handle jumps under your pointer and stays there while you drag; a bubble shows the
+  value. Shift slows the drag to a tenth from where it is, Alt snaps to ten steps. A faint line shows where a click lands.
 * With a bar focused: arrows step, Page Up and Down step coarse, Home and End go to the ends, Enter types a value,
   Delete resets it.
 * A changed value shows a bar on its left edge, "edited" after its label and a reset button; a tick marks the default.

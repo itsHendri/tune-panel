@@ -1,6 +1,6 @@
 {
   "name": "tune-panel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A dev-time panel for tuning feel values (springs, easing, tilt, shader numbers), themed per brand. Never ships.",
   "type": "module",
   "main": "tune-panel.js",

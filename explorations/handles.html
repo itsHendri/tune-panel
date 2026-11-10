@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tune-panel handles</title>
+<style>
+  :root{
+    --bg:#ecece9; --ink:#18181a; --dim:#5d5d59; --hair:#d3d3cf;
+    --ui:system-ui,-apple-system,"Segoe UI",sans-serif; --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  .light{--p-bg:#f1f1ef;--p-surface:#fff;--p-field:#ebebe8;--p-fill:#d6d6d1;--p-text:#18181a;--p-muted:#55554f;--p-accent:#18181a;--p-tint:#8fb0ff}
+  .dark{--p-bg:#141416;--p-surface:#1e1e21;--p-field:#28282c;--p-fill:#3d3d43;--p-text:#ececea;--p-muted:#a6a6a1;--p-accent:#ececea;--p-tint:#3f63c9}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--ui);padding:40px 40px 120px}
+  h1{font-size:22px;margin:0 0 6px}
+  .intro{max-width:780px;color:var(--dim);margin:0 0 28px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:36px 28px}
+  .opt{display:flex;flex-direction:column;gap:10px}
+  .pair{display:grid;grid-template-columns:1fr;gap:8px;max-width:360px}
+  .panel{border-radius:10px;padding:8px;background:var(--p-bg);color:var(--p-text);font:14px/1.3 var(--ui);border:1px solid var(--hair)}
+  .card{background:var(--p-surface);border-radius:10px;padding:5px;display:flex;flex-direction:column;gap:5px}
+  .meta h3{font-size:16px;margin:0}
+  .meta p{margin:2px 0 0;color:var(--dim)}
+  .pickrow{display:flex;gap:10px;align-items:flex-start}
+  .pickrow label{display:flex;gap:8px;align-items:center;font-weight:600;padding:8px 12px;border:1px solid var(--hair);border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap}
+  .pickrow input{width:18px;height:18px;margin:0}
+  .pickrow textarea{flex:1;min-height:40px;font:13px/1.4 var(--ui);padding:8px 10px;border:1px solid var(--hair);border-radius:6px;resize:vertical}
+  .foot{position:fixed;left:0;right:0;bottom:0;padding:14px 40px;background:rgba(236,236,233,.94);border-top:1px solid var(--hair);display:flex;gap:16px;align-items:center;z-index:10}
+  .foot button{font:600 15px var(--ui);padding:12px 22px;border-radius:6px;border:0;background:var(--ink);color:#fff;cursor:pointer}
+  .foot span{color:var(--dim)}
+  :focus{outline:none}
+  :focus-visible{outline:2px solid #2f6fed;outline-offset:-2px}
+
+  /* the B bar, shared */
+  .b{position:relative;height:44px;border-radius:7px;background:var(--p-field);cursor:pointer;user-select:none;touch-action:none;
+     display:flex;align-items:center;justify-content:space-between;padding:0 10px;overflow:hidden}
+  .b .f{position:absolute;inset:0 auto 0 0;background:var(--p-fill)}
+  .b .h{position:absolute;top:7px;bottom:7px;width:4px;margin-left:-2px;border-radius:2px;background:var(--p-accent);pointer-events:none;transition:width .12s,margin .12s}
+  .b:hover .h,.b.drag .h{width:6px;margin-left:-3px}
+  .b .ghost{position:absolute;top:12px;bottom:12px;width:2px;margin-left:-1px;background:var(--p-text);opacity:0;pointer-events:none}
+  .b:hover:not(.drag) .ghost{opacity:.2}
+  .b .txt{position:relative;pointer-events:none;white-space:nowrap}
+  .b .num{font:500 13px var(--mono)}
+
+  /* the value bubble while dragging (from C): outside the bar, which clips */
+  .bw{position:relative}
+  .bub{position:absolute;bottom:calc(100% + 4px);transform:translateX(-50%) translateY(4px);padding:3px 8px;border-radius:6px;
+       background:var(--p-text);color:var(--p-surface);font:500 12px var(--mono);white-space:nowrap;pointer-events:none;z-index:5;
+       opacity:0;transition:opacity .12s,transform .12s}
+  .bub::after{content:"";position:absolute;left:50%;top:100%;margin-left:-4px;border:4px solid transparent;border-top-color:var(--p-text)}
+  .bw.drag .bub{opacity:1;transform:translateX(-50%)}
+  .card{overflow:visible}
+
+  /* 1: tinted handle, multiply (his idea) */
+  .v1 .h{background:var(--p-tint);mix-blend-mode:multiply;width:8px;margin-left:-4px;top:4px;bottom:4px}
+  .v1:hover .h,.v1.drag .h{width:10px;margin-left:-5px}
+  .dark .v1 .h{mix-blend-mode:screen}
+  .v1 .txt{z-index:0}
+
+  /* 1N: neutral tint from the theme's own text colour; multiply in light, screen in dark */
+  .v1a,.v1b,.v1c{--k:28%}
+  .v1b,.v1c{--k:45%}
+  .v1a .h,.v1b .h,.v1c .h{background:color-mix(in srgb,var(--p-text) var(--k),white);mix-blend-mode:multiply;width:6px;margin-left:-3px;top:4px;bottom:4px;border-radius:3px}
+  .dark .v1a .h,.dark .v1b .h,.dark .v1c .h{background:color-mix(in srgb,var(--p-text) var(--k),black);mix-blend-mode:screen}
+  .v1a:hover .h,.v1a.drag .h,.v1b:hover .h,.v1b.drag .h,.v1c:hover .h,.v1c.drag .h{width:8px;margin-left:-4px}
+  .v1c .edge{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--p-text);pointer-events:none}
+  .v1c .edge::before,.v1c .edge::after{content:"";position:absolute;left:0;right:0;height:10px;background:inherit}
+  .v1c .edge{background:none}
+  .v1c .edge::before{top:0;background:var(--p-text)}
+  .v1c .edge::after{bottom:0;background:var(--p-text)}
+
+  /* 2: inverting handle: text under it flips */
+  .v2 .h{background:#fff;mix-blend-mode:difference;width:8px;margin-left:-4px;top:4px;bottom:4px;z-index:2}
+  .v2:hover .h,.v2.drag .h{width:10px;margin-left:-5px}
+
+  /* 3: split needle: a gap where the text line sits */
+  .v3 .h{top:3px;bottom:3px;background:none}
+  .v3 .h::before,.v3 .h::after{content:"";position:absolute;left:0;right:0;height:9px;border-radius:2px;background:var(--p-accent)}
+  .v3 .h::before{top:0}
+  .v3 .h::after{bottom:0}
+
+  /* 4: text over the handle, with a halo in the row's colour */
+  .v4 .txt{z-index:2;text-shadow:0 0 2px var(--p-field),0 0 2px var(--p-field),0 0 4px var(--p-field),0 0 6px var(--p-field)}
+
+  /* 5: text above, bar below */
+  .v5{height:52px;display:block;padding:0;background:none;overflow:visible}
+  .v5 .line{display:flex;justify-content:space-between;align-items:baseline;padding:4px 4px 0;height:24px}
+  .v5 .rail{position:absolute;left:0;right:0;bottom:2px;height:22px;border-radius:6px;background:var(--p-field);overflow:hidden}
+  .v5 .f{border-radius:6px 0 0 6px}
+  .v5 .h{top:-3px;bottom:-3px;z-index:1}
+  .v5 .ghost{top:4px;bottom:4px}
+  .v5 .hz{position:absolute;left:0;right:0;bottom:2px;height:22px}
+
+  /* 6: handle becomes a tab below the text: the bar's bottom edge */
+  .v6 .h{top:auto;bottom:0;height:12px;width:14px;margin-left:-7px;border-radius:4px 4px 0 0}
+  .v6:hover .h,.v6.drag .h{width:16px;margin-left:-8px;height:14px}
+  .v6 .f{box-shadow:inset -2px 0 0 var(--p-accent)}
+  .v6 .txt{transform:translateY(-3px)}
+</style>
+</head>
+<body>
+<h1>tune-panel: the handle over text</h1>
+<p class="intro" style="margin-bottom:8px"><b>New at the top:</b> option 1 with a neutral tint, at three strengths.</p>
+<p class="intro">
+  B with C's value bubble while you drag, and six ways to keep the label and the number readable when the handle crosses them. Each row starts with the handle sitting on
+  the text (Perspective on its number, Damping on its label). Drag them across. Every option shows light above dark:
+  a blend that works in one can fail in the other. Each panel is the real width.
+</p>
+<div class="grid" id="grid"></div>
+<div class="foot"><button id="copy">Copy picks</button><span id="status">Nothing ticked yet</span></div>
+
+<script>
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const dec = (n) => (String(n).split(".")[1] ?? "").length;
+const snapTo = (v, s, k = 1) => { const st = s.step * k; return clamp(Number((s.min + Math.round((v - s.min) / st) * st).toFixed(dec(s.step) + 1)), s.min, s.max); };
+const pct = (s) => ((s.value - s.min) / (s.max - s.min)) * 100;
+const SAMPLES = () => [
+  { label: "Perspective", min: 200, max: 2400, step: 50, value: 2250, unit: " px" },
+  { label: "Damping", min: 4, max: 60, step: 1, value: 10, unit: "" },
+];
+
+function bar(v, s) {
+  const el = document.createElement("div");
+  el.className = `b ${v}`;
+  el.tabIndex = 0;
+  el.setAttribute("role", "slider");
+  el.setAttribute("aria-label", s.label);
+  const txt = `<span class="txt">${s.label}</span><span class="txt num"></span>`;
+  el.innerHTML = v === "v5"
+    ? `<div class="line">${txt}</div><div class="rail"><span class="f"></span><span class="ghost"></span></div><span class="hz"><span class="h"></span></span>`
+    : `<span class="f"></span><span class="ghost"></span><span class="h"></span>${v === "v1c" ? '<span class="edge"></span>' : ""}${txt}`;
+  const zone = v === "v5" ? el.querySelector(".rail") : el;
+  const wrap = document.createElement("div");
+  wrap.className = "bw";
+  const bub = document.createElement("span");
+  bub.className = "bub";
+  bub.setAttribute("aria-hidden", "true");
+  wrap.append(el, bub);
+  const draw = () => {
+    el.querySelector(".f").style.width = pct(s) + "%";
+    el.querySelector(".h").style.left = pct(s) + "%";
+    const edge = el.querySelector(".edge"); if (edge) edge.style.left = pct(s) + "%";
+    el.querySelector(".num").textContent = s.value + s.unit;
+    bub.textContent = s.value + s.unit;
+    bub.style.left = `calc(${pct(s) / 100} * ${zone === el ? "100%" : "100%"})`;
+    el.setAttribute("aria-valuenow", s.value);
+  };
+  const set = (x) => { s.value = x; draw(); };
+  el.addEventListener("pointermove", (e) => { const r = zone.getBoundingClientRect(); el.querySelector(".ghost").style.left = clamp(e.clientX - r.left, 0, r.width) + "px"; });
+  el.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    const r = zone.getBoundingClientRect();
+    let fine = null;
+    const apply = (ev) => {
+      if (ev.shiftKey) { fine ??= { x: ev.clientX, v: s.value }; set(snapTo(fine.v + ((ev.clientX - fine.x) / r.width) * (s.max - s.min) * 0.1, s, 0.1)); }
+      else { fine = null; set(snapTo(s.min + clamp((ev.clientX - r.left) / r.width, 0, 1) * (s.max - s.min), s, ev.altKey ? 10 : 1)); }
+    };
+    el.classList.add("drag");
+    wrap.classList.add("drag");
+    apply(e);
+    el.setPointerCapture(e.pointerId);
+    const ac = new AbortController();
+    el.addEventListener("pointermove", apply, { signal: ac.signal });
+    const end = () => { ac.abort(); el.classList.remove("drag"); wrap.classList.remove("drag"); };
+    el.addEventListener("pointerup", end, { signal: ac.signal });
+    el.addEventListener("pointercancel", end, { signal: ac.signal });
+  });
+  el.addEventListener("keydown", (e) => {
+    const d = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+    if (!d) return;
+    e.preventDefault();
+    set(snapTo(s.value + d * s.step * (e.shiftKey ? 0.1 : e.altKey ? 10 : 1), s, e.shiftKey ? 0.1 : 1));
+  });
+  draw();
+  return wrap;
+}
+
+const OPTIONS = [
+  ["v1a", "1N · Neutral tint, soft", "Option 1 in grey: a light band taken from the theme's own text colour, multiplied in light mode and screened in dark. The text reads straight through it."],
+  ["v1b", "1N · Neutral tint, medium", "The same band, darker, so the handle is easier to find at a glance. Still no colour."],
+  ["v1c", "1N · Neutral tint + edge stubs", "The medium band, plus short solid stubs at the top and bottom edge (from option 3), so the exact value is marked crisply without touching the text."],
+  ["v1", "1 · Tinted handle, multiply", "Your idea: a light blue handle blended with multiply, so the dark text shows through it. In dark mode multiply would turn the handle black, so it switches to screen there. The handle is then marked by colour more than by shape."],
+  ["v2", "2 · Inverting handle", "The handle inverts whatever is under it (difference blend): dark text turns light where the handle crosses it. Reads in light and dark with no colour, but the handle looks dark grey on the fill, not black."],
+  ["v3", "3 · Split needle", "The handle is two short stubs at the top and bottom edges with a gap where the text line sits, so it never touches the letters. No blending, works in every theme. Still clearly a handle."],
+  ["v4", "4 · Text on top, with a halo", "The handle stays solid and full height, but the label and number sit above it with a soft glow in the row's colour, which cuts a gap around the letters."],
+  ["v5", "5 · Text above, bar below", "The label and number get their own line and the bar sits under them, so nothing overlaps. Rows grow from 44 to 52px. Closest to C, with B's fill."],
+  ["v6", "6 · Tab on the bottom edge", "The fill's edge gets a thin line, and the handle is a small tab on the bottom edge, below the text. The text never meets it; the grip is smaller."],
+];
+
+const grid = document.getElementById("grid");
+for (const [v, name, line] of OPTIONS) {
+  const opt = document.createElement("section");
+  opt.className = "opt";
+  opt.innerHTML = `<div class="meta"><h3>${name}</h3><p>${line}</p></div>`;
+  const pair = document.createElement("div");
+  pair.className = "pair";
+  for (const scheme of ["light", "dark"]) {
+    const panel = document.createElement("div");
+    panel.className = `panel ${scheme}`;
+    const card = document.createElement("div");
+    card.className = "card";
+    SAMPLES().forEach((s) => card.append(bar(v, s)));
+    panel.append(card);
+    pair.append(panel);
+  }
+  opt.append(pair);
+  const pick = document.createElement("div");
+  pick.className = "pickrow";
+  pick.innerHTML = `<label><input type="checkbox" data-id="${v}"> Pick</label><textarea data-note="${v}" placeholder="Note"></textarea>`;
+  opt.append(pick);
+  grid.append(opt);
+}
+
+const status = document.getElementById("status");
+const picks = () => OPTIONS.map(([v, name]) => ({ option: name, picked: document.querySelector(`[data-id="${v}"]`).checked,
+  note: document.querySelector(`[data-note="${v}"]`).value.trim() })).filter((p) => p.picked || p.note);
+document.addEventListener("input", () => { const n = picks().filter((p) => p.picked).length; status.textContent = n ? `${n} picked` : "Nothing ticked yet"; });
+document.getElementById("copy").addEventListener("click", async () => {
+  const json = JSON.stringify(picks(), null, 2);
+  let ok = false;
+  try { await navigator.clipboard.writeText(json); ok = true; } catch {
+    const ta = Object.assign(document.createElement("textarea"), { value: json });
+    ta.style.cssText = "position:fixed;opacity:0"; document.body.append(ta); ta.focus(); ta.select();
+    try { ok = document.execCommand("copy"); } catch {}
+    ta.remove();
+  }
+  status.textContent = ok ? "Copied. Paste it in chat." : "Copy was blocked: tell me your picks in chat.";
+});
+</script>
+</body>
+</html>

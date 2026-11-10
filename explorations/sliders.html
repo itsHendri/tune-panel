@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tune-panel sliders and compare</title>
+<style>
+  :root{
+    --bg:#ecece9; --ink:#18181a; --dim:#5d5d59; --hair:#d3d3cf;
+    --p-bg:#f1f1ef; --p-surface:#fff; --p-field:#ebebe8; --p-fill:#d6d6d1; --p-text:#18181a; --p-muted:#55554f;
+    --p-line:#e0e0dc; --p-accent:#18181a; --p-focus:#2f6fed;
+    --ui:system-ui,-apple-system,"Segoe UI",sans-serif; --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--ui);padding:40px 40px 120px}
+  h1{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
+  h2.part{font-size:18px;margin:56px 0 4px}
+  .intro{max-width:760px;color:var(--dim);margin:0 0 28px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:36px 28px}
+  .opt{display:flex;flex-direction:column;gap:10px}
+  .panel{background:var(--p-bg);border:1px solid var(--hair);border-radius:10px;padding:12px;color:var(--p-text);font:14px/1.3 var(--ui)}
+  .card{background:var(--p-surface);border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:6px}
+  .meta h3{font-size:16px;margin:0}
+  .meta p{margin:2px 0 0;color:var(--dim)}
+  .meta .grip{font-size:13px;color:var(--ink);margin-top:4px}
+  .pickrow{display:flex;gap:10px;align-items:flex-start}
+  .pickrow label{display:flex;gap:8px;align-items:center;font-weight:600;padding:8px 12px;border:1px solid var(--hair);border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap}
+  .pickrow input[type=checkbox]{width:18px;height:18px;margin:0}
+  .pickrow textarea{flex:1;min-height:40px;font:13px/1.4 var(--ui);padding:8px 10px;border:1px solid var(--hair);border-radius:6px;resize:vertical}
+  .out{font:12px var(--mono);color:var(--dim);margin-top:6px}
+  .bar-foot{position:fixed;left:0;right:0;bottom:0;padding:14px 40px;background:rgba(236,236,233,.94);border-top:1px solid var(--hair);display:flex;gap:16px;align-items:center;backdrop-filter:blur(6px);z-index:10}
+  .bar-foot button{font:600 15px var(--ui);padding:12px 22px;border-radius:6px;border:0;background:var(--ink);color:#fff;cursor:pointer}
+  .bar-foot span{color:var(--dim)}
+  :focus{outline:none}
+  :focus-visible{outline:2px solid var(--p-focus);outline-offset:2px}
+  .u{font:13px var(--mono);color:var(--p-muted)}
+  .num{font:500 13px var(--mono)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+
+  /* --- A: fill bar, as now --- */
+  .vA{position:relative;height:44px;border-radius:7px;background:var(--p-field);overflow:hidden;cursor:ew-resize;user-select:none;touch-action:none;display:flex;align-items:center;justify-content:space-between;padding:0 12px}
+  .vA .f{position:absolute;inset:0 auto 0 0;background:var(--p-fill)}
+  .vA .t{position:absolute;top:10px;bottom:10px;width:2px;background:var(--p-text);opacity:.3}
+  .vA > span{position:relative}
+  .vA:focus-visible{outline-offset:-2px}
+
+  /* --- B: fill bar with a handle on its edge, absolute --- */
+  .vB{position:relative;height:44px;border-radius:7px;background:var(--p-field);cursor:pointer;user-select:none;touch-action:none;display:flex;align-items:center;justify-content:space-between;padding:0 12px}
+  .vB .f{position:absolute;inset:0 auto 0 0;background:var(--p-fill);border-radius:7px 0 0 7px}
+  .vB .h{position:absolute;top:8px;bottom:8px;width:4px;margin-left:-2px;border-radius:2px;background:var(--p-text);transition:width .12s,margin .12s,top .12s,bottom .12s}
+  .vB:hover .h,.vB.drag .h{width:6px;margin-left:-3px;top:5px;bottom:5px}
+  .vB .ghost{position:absolute;top:12px;bottom:12px;width:2px;margin-left:-1px;background:var(--p-text);opacity:0;pointer-events:none}
+  .vB:hover:not(.drag) .ghost{opacity:.25}
+  .vB.drag{cursor:grabbing}
+  .vB > span{position:relative;pointer-events:none}
+  .vB:focus-visible{outline-offset:-2px}
+
+  /* --- C: label and value above a track with a thumb --- */
+  .vC{padding:8px 12px 12px;border-radius:7px;background:var(--p-field);user-select:none}
+  .vC .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+  .vC .tr{position:relative;height:20px;cursor:pointer;touch-action:none}
+  .vC .rail{position:absolute;left:0;right:0;top:8px;height:4px;border-radius:2px;background:var(--p-fill)}
+  .vC .f{position:absolute;left:0;top:8px;height:4px;border-radius:2px;background:var(--p-text)}
+  .vC .d{position:absolute;top:2px;width:2px;height:16px;margin-left:-1px;background:var(--p-muted);opacity:.5}
+  .vC .th{position:absolute;top:1px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px var(--p-text),0 1px 4px rgb(0 0 0/.2);transition:transform .12s;cursor:grab}
+  .vC .tr:hover .th,.vC.drag .th{transform:scale(1.2)}
+  .vC.drag .th{cursor:grabbing}
+  .vC .bub{position:absolute;bottom:26px;transform:translateX(-50%);padding:3px 7px;border-radius:5px;background:var(--p-text);color:#fff;font:12px var(--mono);opacity:0;pointer-events:none;white-space:nowrap}
+  .vC.drag .bub{opacity:1}
+  .vC .tr:focus-visible{outline-offset:4px;border-radius:4px}
+
+  /* --- D: scrub the value, no track --- */
+  .vD{position:relative;height:44px;border-radius:7px;background:var(--p-field);display:flex;align-items:center;justify-content:space-between;padding:0 12px;cursor:ew-resize;user-select:none;touch-action:none;overflow:hidden}
+  .vD .v{display:flex;align-items:center;gap:6px}
+  .vD .ch{color:var(--p-muted);opacity:0;transition:opacity .12s}
+  .vD:hover .ch,.vD.drag .ch{opacity:1}
+  .vD .pg{position:absolute;left:0;bottom:0;height:3px;background:var(--p-text);opacity:.55}
+  .vD.drag{background:var(--p-fill)}
+  .vD:focus-visible{outline-offset:-2px}
+
+  /* --- E: stepper with a scrub field --- */
+  .vE{position:relative;height:44px;border-radius:7px;background:var(--p-field);display:flex;align-items:center;gap:4px;padding:0 4px 0 12px;user-select:none;overflow:hidden}
+  .vE .lab{flex:1}
+  .vE button{width:34px;height:34px;border:0;border-radius:6px;background:var(--p-surface);font:500 18px var(--ui);color:var(--p-text);cursor:pointer}
+  .vE button:active{background:var(--p-fill)}
+  .vE .fld{min-width:76px;height:34px;display:flex;align-items:center;justify-content:center;gap:4px;border-radius:6px;cursor:ew-resize;touch-action:none}
+  .vE .fld:hover,.vE.drag .fld{background:var(--p-surface)}
+  .vE .pg{position:absolute;left:0;bottom:0;height:2px;background:var(--p-text);opacity:.45}
+  .vE .fld:focus-visible{outline-offset:-2px}
+
+  /* --- F: ruler under a fixed marker --- */
+  .vF{border-radius:7px;background:var(--p-field);padding:8px 0 0;user-select:none;overflow:hidden}
+  .vF .top{display:flex;justify-content:space-between;align-items:baseline;padding:0 12px}
+  .vF .big{font:500 20px var(--mono)}
+  .vF .ru{position:relative;height:34px;cursor:grab;touch-action:none;margin-top:4px;
+          -webkit-mask-image:linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent);mask-image:linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent)}
+  .vF.drag .ru{cursor:grabbing}
+  .vF .ticks{position:absolute;top:0;bottom:0;left:50%}
+  .vF .ticks i{position:absolute;bottom:0;width:1px;background:var(--p-text);opacity:.45}
+  .vF .mk{position:absolute;left:50%;bottom:0;width:3px;height:28px;margin-left:-1.5px;border-radius:2px;background:var(--p-text)}
+  .vF .ru:focus-visible{outline-offset:-2px}
+
+  /* --- compare mocks --- */
+  .stage{display:flex;align-items:center;justify-content:center;height:110px;border-radius:7px;background:var(--p-field);perspective:600px}
+  .stage .sq{width:70px;height:70px;border-radius:10px;background:var(--p-text);transition:transform .25s cubic-bezier(.2,0,0,1)}
+  .mini{display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:7px;background:var(--p-field)}
+  .mini span{flex:1}
+  .mini input{width:120px}
+  .seg{display:flex;gap:3px;padding:3px;border-radius:7px;background:var(--p-field)}
+  .seg button,.btn{flex:1;min-height:34px;border:0;border-radius:5px;background:none;font:600 13px var(--ui);color:var(--p-muted);cursor:pointer}
+  .seg button[aria-pressed=true]{background:var(--p-surface);color:var(--p-text);box-shadow:0 1px 2px rgb(0 0 0/.12)}
+  .btn{background:var(--p-surface);border:1.5px solid color-mix(in srgb,var(--p-text) 22%,transparent);color:var(--p-text);padding:0 12px}
+  .btn.hold:active,.btn.on{background:var(--p-text);color:#fff}
+  .state{font:12px var(--mono);color:var(--p-muted);padding:0 4px;min-height:1.2em}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border:1.5px solid color-mix(in srgb,var(--p-text) 22%,transparent);background:var(--p-surface);border-radius:7px;padding:6px 10px;font:12px var(--mono);cursor:pointer;color:var(--p-text);text-align:left}
+  .chip[aria-pressed=true]{border-color:var(--p-text);box-shadow:inset 0 0 0 1px var(--p-text)}
+  .empty{border:1.5px dashed color-mix(in srgb,var(--p-text) 30%,transparent);border-radius:7px;padding:10px;color:var(--p-muted);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<h1>tune-panel: sliders, round 2</h1>
+<p class="intro">
+  Six ways to change a number, all real: drag them. Each has the same two values (Perspective 200 to 2400 px, Damping 4 to 60).
+  Everywhere: Shift for fine steps, Alt for coarse, arrow keys once focused. The grey tick or line marks the default.
+  Under each one, "Grip" says what you hold. Then, further down, four answers to A/B.
+</p>
+
+<div class="grid" id="sliders"></div>
+
+<h2 class="part">Comparing versions (instead of A/B as it is now)</h2>
+<p class="intro">
+  The A/B switch was unclear because B starts as a silent copy of A and nothing says so. These are the patterns other tools
+  use. Lightroom's backslash key shows the photo before your edits while you hold it. Audio plugins (FabFilter, Waves) pair
+  an A/B switch with an explicit "Copy A to B" button. Design and 3D tools save named snapshots. Or there's the cheapest option:
+  no compare at all. Each mock below tilts the square by "Tilt" so you can see the difference.
+</p>
+<div class="grid" id="compare"></div>
+
+<div class="bar-foot"><button id="copy">Copy picks</button><span id="status">Nothing ticked yet</span></div>
+
+<script>
+/* ------------------------------------------------------------ shared */
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const dec = (n) => (String(n).split(".")[1] ?? "").length;
+const fmt = (v, step) => String(Number(v.toFixed(Math.max(dec(step) + 1, 0)) ));
+const mod = (e) => (e.shiftKey ? 0.1 : e.altKey ? 10 : 1);
+function snapTo(v, s, scale = 1) {
+  const st = s.step * scale;
+  return clamp(Number((s.min + Math.round((v - s.min) / st) * st).toFixed(dec(s.step) + 1)), s.min, s.max);
+}
+const pct = (s) => ((s.value - s.min) / (s.max - s.min)) * 100;
+const SAMPLES = () => [
+  { label: "Perspective", min: 200, max: 2400, step: 50, value: 1000, def: 1000, unit: "px" },
+  { label: "Damping", min: 4, max: 60, step: 1, value: 20, def: 20, unit: "" },
+];
+function keys(el, s, set) {
+  el.addEventListener("keydown", (e) => {
+    const d = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+    if (!d) return;
+    e.preventDefault();
+    set(snapTo(s.value + d * s.step * mod(e), s, e.shiftKey ? 0.1 : 1));
+  });
+}
+function capture(el, e, move, end) {
+  el.setPointerCapture(e.pointerId);
+  const ac = new AbortController();
+  el.addEventListener("pointermove", move, { signal: ac.signal });
+  const done = (ev) => { ac.abort(); end?.(ev); };
+  el.addEventListener("pointerup", done, { signal: ac.signal });
+  el.addEventListener("pointercancel", done, { signal: ac.signal });
+}
+/** Absolute: the value is wherever the pointer is. Shift switches to a slow relative drag from there. */
+function absoluteDrag(zone, s, set, onStart, onEnd) {
+  zone.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    const r = zone.getBoundingClientRect();
+    const at = (x) => s.min + clamp((x - r.left) / r.width, 0, 1) * (s.max - s.min);
+    let fineFrom = null;
+    const apply = (ev) => {
+      if (ev.shiftKey) {
+        fineFrom ??= { x: ev.clientX, v: s.value };
+        set(snapTo(fineFrom.v + ((ev.clientX - fineFrom.x) / r.width) * (s.max - s.min) * 0.1, s, 0.1));
+      } else {
+        fineFrom = null;
+        set(snapTo(at(ev.clientX), s, ev.altKey ? 10 : 1));
+      }
+    };
+    onStart?.();
+    apply(e);
+    capture(zone, e, apply, () => onEnd?.());
+  });
+}
+/** Relative: a step every `px` pixels from where you pressed. */
+function relativeDrag(zone, s, set, px, onStart, onEnd) {
+  zone.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    let x0 = e.clientX, v0 = s.value, m = mod(e);
+    onStart?.();
+    capture(zone, e, (ev) => {
+      if (mod(ev) !== m) { x0 = ev.clientX; v0 = s.value; m = mod(ev); }
+      set(snapTo(v0 + Math.trunc((ev.clientX - x0) / px) * s.step * m, s, ev.shiftKey ? 0.1 : 1));
+    }, () => onEnd?.());
+  });
+}
+
+/* ------------------------------------------------------------ the six sliders */
+const V = {};
+
+V.A = { name: "A · Fill bar (now)", grip: "The whole row, but it moves relative to where you pressed, and a click jumps. So the edge of the grey doesn't stay under your pointer.",
+  line: "What 0.1.0 does. Kept here to compare.",
+  make(s) {
+    const el = Object.assign(document.createElement("div"), { className: "vA", tabIndex: 0 });
+    el.innerHTML = `<span class="f"></span><span class="t" style="left:${pct({ ...s, value: s.def })}%"></span><span>${s.label}</span><span class="num"></span>`;
+    const draw = () => { el.querySelector(".f").style.width = pct(s) + "%"; el.querySelector(".num").textContent = fmt(s.value, s.step) + " " + s.unit; };
+    const set = (v) => { s.value = v; draw(); };
+    el.addEventListener("pointerdown", (e) => {
+      const r = el.getBoundingClientRect(); let x0 = e.clientX, v0 = s.value, moved = false;
+      capture(el, e, (ev) => { if (Math.abs(ev.clientX - e.clientX) > 3) moved = true; if (moved) set(snapTo(v0 + ((ev.clientX - x0) / r.width) * (s.max - s.min) * (ev.shiftKey ? .1 : 1), s, ev.shiftKey ? .1 : 1)); },
+        (ev) => { if (!moved) set(snapTo(s.min + ((ev.clientX - r.left) / r.width) * (s.max - s.min), s)); });
+    });
+    keys(el, s, set); draw(); return el;
+  } };
+
+V.B = { name: "B · Fill bar with a handle", grip: "A dark handle on the fill's edge. Press anywhere and the handle jumps under your pointer and stays there while you drag. A faint line shows where a click would land.",
+  line: "Keeps the look you liked, fixes the 'what am I holding' problem. Shift slows it down from where you are.",
+  make(s) {
+    const el = Object.assign(document.createElement("div"), { className: "vB", tabIndex: 0 });
+    el.innerHTML = `<span class="f"></span><span class="ghost"></span><span class="h"></span><span>${s.label}</span><span class="num"></span>`;
+    const draw = () => { el.querySelector(".f").style.width = pct(s) + "%"; el.querySelector(".h").style.left = pct(s) + "%"; el.querySelector(".num").textContent = fmt(s.value, s.step) + " " + s.unit; };
+    const set = (v) => { s.value = v; draw(); };
+    el.addEventListener("pointermove", (e) => { const r = el.getBoundingClientRect(); el.querySelector(".ghost").style.left = clamp(e.clientX - r.left, 0, r.width) + "px"; });
+    absoluteDrag(el, s, set, () => el.classList.add("drag"), () => el.classList.remove("drag"));
+    keys(el, s, set); draw(); return el;
+  } };
+
+V.C = { name: "C · Track and thumb", grip: "A round thumb on a thin track, under the label and value. Grab the thumb, or press the track and the thumb comes to you. A bubble shows the value while you drag.",
+  line: "The most familiar slider there is. Taller rows (60px), so fewer fit on screen.",
+  make(s) {
+    const el = Object.assign(document.createElement("div"), { className: "vC" });
+    el.innerHTML = `<div class="top"><span>${s.label}</span><span class="num"></span></div>
+      <div class="tr" tabindex="0" role="slider" aria-label="${s.label}"><span class="rail"></span><span class="f"></span><span class="d" style="left:${pct({ ...s, value: s.def })}%"></span><span class="bub"></span><span class="th"></span></div>`;
+    const tr = el.querySelector(".tr");
+    const draw = () => { const p = pct(s) + "%"; el.querySelector(".f").style.width = p; el.querySelector(".th").style.left = p; const b = el.querySelector(".bub"); b.style.left = p; b.textContent = fmt(s.value, s.step); el.querySelector(".num").textContent = fmt(s.value, s.step) + " " + s.unit; };
+    const set = (v) => { s.value = v; draw(); };
+    absoluteDrag(tr, s, set, () => el.classList.add("drag"), () => el.classList.remove("drag"));
+    keys(tr, s, set); draw(); return el;
+  } };
+
+V.D = { name: "D · Scrub the value", grip: "The row itself, like Figma's number fields: drag left or right anywhere, one step per 4px. Arrows appear around the value on hover. A thin line along the bottom shows where you are in the range.",
+  line: "Most compact, and good for values without a natural maximum. Less direct for 'set it to about here'.",
+  make(s) {
+    const el = Object.assign(document.createElement("div"), { className: "vD", tabIndex: 0 });
+    el.innerHTML = `<span>${s.label}</span><span class="v"><span class="ch">‹</span><span class="num"></span><span class="ch">›</span></span><span class="pg"></span>`;
+    const draw = () => { el.querySelector(".pg").style.width = pct(s) + "%"; el.querySelector(".num").textContent = fmt(s.value, s.step) + " " + s.unit; };
+    const set = (v) => { s.value = v; draw(); };
+    relativeDrag(el, s, set, 4, () => el.classList.add("drag"), () => el.classList.remove("drag"));
+    keys(el, s, set); draw(); return el;
+  } };
+
+V.E = { name: "E · Stepper", grip: "Three things: minus, plus, and the value between them, which you drag sideways (or click to type). Hold minus or plus to repeat.",
+  line: "Precise and obvious, slow for big moves. Good when values are small whole numbers.",
+  make(s) {
+    const el = Object.assign(document.createElement("div"), { className: "vE" });
+    el.innerHTML = `<span class="lab">${s.label}</span><button type="button" aria-label="Less">−</button><span class="fld" tabindex="0"><span class="num"></span><span class="u">${s.unit}</span></span><button type="button" aria-label="More">+</button><span class="pg"></span>`;
+    const fld = el.querySelector(".fld");
+    const draw = () => { el.querySelector(".pg").style.width = pct(s) + "%"; el.querySelector(".num").textContent = fmt(s.value, s.step); };
+    const set = (v) => { s.value = v; draw(); };
+    const [minus, plus] = el.querySelectorAll("button");
+    for (const [b, d] of [[minus, -1], [plus, 1]]) {
+      let t;
+      const go = (e) => { set(snapTo(s.value + d * s.step * mod(e), s, e.shiftKey ? .1 : 1)); };
+      b.addEventListener("pointerdown", (e) => { go(e); t = setTimeout(function rep() { go(e); t = setTimeout(rep, 60); }, 380); });
+      ["pointerup", "pointerleave", "pointercancel"].forEach((n) => b.addEventListener(n, () => clearTimeout(t)));
+    }
+    relativeDrag(fld, s, set, 5, () => el.classList.add("drag"), () => el.classList.remove("drag"));
+    keys(fld, s, set); draw(); return el;
+  } };
+
+V.F = { name: "F · Ruler", grip: "A ruler you pull under a fixed marker, like a camera dial. The number above is large. The default is the tall tick.",
+  line: "Feels physical and fine-grained. Takes more height and is unusual on a desktop.",
+  make(s) {
+    const el = Object.assign(document.createElement("div"), { className: "vF" });
+    const n = Math.round((s.max - s.min) / s.step), gap = 8;
+    let ticks = "";
+    for (let i = 0; i <= n; i++) {
+      const v = s.min + i * s.step, isDef = Math.abs(v - s.def) < s.step / 2, major = i % 5 === 0;
+      ticks += `<i style="left:${i * gap}px;height:${isDef ? 26 : major ? 16 : 9}px;${isDef ? "opacity:.9;width:2px" : ""}"></i>`;
+    }
+    el.innerHTML = `<div class="top"><span>${s.label}</span><span><span class="big num"></span> <span class="u">${s.unit}</span></span></div>
+      <div class="ru" tabindex="0" role="slider" aria-label="${s.label}"><div class="ticks">${ticks}</div><span class="mk"></span></div>`;
+    const ru = el.querySelector(".ru");
+    const draw = () => { el.querySelector(".ticks").style.transform = `translateX(${-((s.value - s.min) / s.step) * gap}px)`; el.querySelector(".num").textContent = fmt(s.value, s.step); };
+    const set = (v) => { s.value = v; draw(); };
+    ru.addEventListener("pointerdown", (e) => {
+      let x0 = e.clientX, v0 = s.value, m = mod(e);
+      el.classList.add("drag");
+      capture(ru, e, (ev) => {
+        if (mod(ev) !== m) { x0 = ev.clientX; v0 = s.value; m = mod(ev); }
+        set(snapTo(v0 - ((ev.clientX - x0) / gap) * s.step * m, s, ev.shiftKey ? .1 : 1));
+      }, () => el.classList.remove("drag"));
+    });
+    keys(ru, s, set); draw(); return el;
+  } };
+
+/* ------------------------------------------------------------ compare options */
+const C = {};
+function stageAndSliders(st) {
+  const wrap = document.createElement("div");
+  wrap.className = "card";
+  wrap.innerHTML = `<div class="stage"><div class="sq"></div></div>
+    <label class="mini"><span>Tilt</span><input type="range" min="0" max="40" step="1"><b class="num"></b></label>
+    <label class="mini"><span>Size</span><input type="range" min="40" max="90" step="1"><b class="num"></b></label>`;
+  const [tilt, size] = wrap.querySelectorAll("input");
+  const draw = () => {
+    tilt.value = st.v.tilt; size.value = st.v.size;
+    const [a, b] = wrap.querySelectorAll(".mini .num"); a.textContent = st.v.tilt + "°"; b.textContent = st.v.size;
+    const sq = wrap.querySelector(".sq"); sq.style.transform = `rotateY(${st.v.tilt}deg) rotateX(${st.v.tilt / 2}deg)`; sq.style.width = sq.style.height = st.v.size + "px";
+  };
+  tilt.addEventListener("input", () => { st.v.tilt = +tilt.value; st.onEdit?.(); draw(); });
+  size.addEventListener("input", () => { st.v.size = +size.value; st.onEdit?.(); draw(); });
+  st.draw = draw;
+  return wrap;
+}
+const ORIGINAL = { tilt: 12, size: 70 };
+const diff = (v) => Object.keys(v).filter((k) => v[k] !== ORIGINAL[k]).map((k) => `${k} ${v[k]}`).join(", ") || "original";
+
+C.hold = { name: "1 · Hold to compare with the original", line: "A Compare button in the footer (or hold the \\ key, like Lightroom). While you hold it, the page shows the values from the code; let go and your edits are back. No setup, nothing to manage. Answers the usual question: is this better than what's there now?",
+  make() {
+    const st = { v: { ...ORIGINAL, tilt: 28, size: 60 } };
+    const el = document.createElement("div"); el.className = "panel";
+    const card = stageAndSliders(st);
+    const btn = Object.assign(document.createElement("button"), { className: "btn hold", type: "button", textContent: "Hold to compare" });
+    const state = Object.assign(document.createElement("p"), { className: "state", textContent: "Showing: your edits" });
+    let saved = null;
+    const on = () => { saved = { ...st.v }; st.v = { ...ORIGINAL }; st.draw(); state.textContent = "Showing: the original (from the code)"; };
+    const off = () => { if (!saved) return; st.v = saved; saved = null; st.draw(); state.textContent = "Showing: your edits"; };
+    btn.addEventListener("pointerdown", on); ["pointerup", "pointerleave", "pointercancel"].forEach((n) => btn.addEventListener(n, off));
+    btn.addEventListener("keydown", (e) => { if (e.key === " " && !e.repeat) on(); }); btn.addEventListener("keyup", (e) => { if (e.key === " ") off(); });
+    const row = document.createElement("div"); row.style.cssText = "display:flex;flex-direction:column;gap:6px;margin-top:8px"; row.append(btn, state);
+    el.append(card, row); st.draw(); return el;
+  } };
+
+C.ab = { name: "2 · A/B with an explicit copy", line: "The audio-plugin way. B starts empty and says so; 'Copy A to B' fills it, then you tune B and flip. The pressed button and the 'Showing' line both say which one you're looking at. Copy values copies the one showing.",
+  make() {
+    const slots = { A: { ...ORIGINAL, tilt: 28 }, B: null }; let cur = "A";
+    const st = { v: { ...slots.A }, onEdit: () => { slots[cur] = { ...st.v }; } };
+    const el = document.createElement("div"); el.className = "panel";
+    const seg = document.createElement("div"); seg.className = "seg"; seg.style.marginBottom = "8px";
+    const a = Object.assign(document.createElement("button"), { type: "button", textContent: "A" });
+    const b = Object.assign(document.createElement("button"), { type: "button", textContent: "B" });
+    const cp = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: "Copy A → B" });
+    cp.style.flex = "0 0 auto";
+    seg.append(a, b, cp);
+    const card = stageAndSliders(st);
+    const empty = Object.assign(document.createElement("div"), { className: "empty", textContent: "B is empty. Copy A to B to start a second version." });
+    const state = Object.assign(document.createElement("p"), { className: "state" });
+    const draw = () => {
+      a.setAttribute("aria-pressed", cur === "A"); b.setAttribute("aria-pressed", cur === "B");
+      const other = cur === "A" ? "B" : "A";
+      cp.textContent = slots[cur] ? `Copy ${cur} → ${other}` : `Copy ${other} → ${cur}`;
+      const blank = !slots[cur];
+      card.style.display = blank ? "none" : ""; empty.style.display = blank ? "" : "none";
+      state.textContent = blank ? "Showing: B (empty)" : `Showing: ${cur} · ${diff(st.v)}`;
+    };
+    const show = (k) => { cur = k; if (slots[k]) { st.v = { ...slots[k] }; st.draw(); } draw(); };
+    a.onclick = () => show("A"); b.onclick = () => show("B");
+    cp.onclick = () => {
+      const other = cur === "A" ? "B" : "A";
+      if (slots[cur]) { slots[other] = { ...slots[cur] }; show(other); }   // fill the other one and go there
+      else { slots[cur] = { ...slots[other] }; st.v = { ...slots[cur] }; st.draw(); draw(); }   // fill this empty one
+    };
+    const _edit = st.onEdit; st.onEdit = () => { _edit(); draw(); };
+    el.append(seg, card, empty, state); st.draw(); draw(); return el;
+  } };
+
+C.snap = { name: "3 · Snapshots", line: "'Save snapshot' keeps the current values as a numbered chip that lists what changed. Click a chip to load it. As many as you like; they vanish on reload. Good for 'I had a nice one three tries ago'.",
+  make() {
+    const st = { v: { ...ORIGINAL, tilt: 28 } };
+    const shots = [{ ...ORIGINAL }]; let active = null;
+    const el = document.createElement("div"); el.className = "panel";
+    const card = stageAndSliders(st);
+    const chips = document.createElement("div"); chips.className = "chips"; chips.style.marginTop = "8px";
+    const save = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: "Save snapshot" });
+    save.style.cssText = "width:100%;margin-top:8px";
+    st.onEdit = () => { active = null; draw(); };
+    const draw = () => {
+      chips.replaceChildren(...shots.map((v, i) => {
+        const c = Object.assign(document.createElement("button"), { className: "chip", type: "button", textContent: i === 0 ? "Original" : `${i} · ${diff(v)}` });
+        c.setAttribute("aria-pressed", active === i);
+        c.onclick = () => { st.v = { ...v }; active = i; st.draw(); draw(); };
+        return c;
+      }));
+    };
+    save.onclick = () => { shots.push({ ...st.v }); active = shots.length - 1; draw(); };
+    el.append(card, save, chips); st.draw(); draw(); return el;
+  } };
+
+C.none = { name: "4 · No compare", line: "Drop A/B. Per-value reset and Reset all already take you back to the original, and Copy values captures any version you like in chat. Cheapest, one less thing on screen.",
+  make() {
+    const st = { v: { ...ORIGINAL, tilt: 28 } };
+    const el = document.createElement("div"); el.className = "panel";
+    const reset = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: "Reset all" });
+    reset.style.cssText = "width:100%;margin-top:8px";
+    reset.onclick = () => { st.v = { ...ORIGINAL }; st.draw(); };
+    el.append(stageAndSliders(st), reset); st.draw(); return el;
+  } };
+
+/* ------------------------------------------------------------ picker */
+function option(host, id, name, line, extra, body) {
+  const el = document.createElement("section");
+  el.className = "opt";
+  el.innerHTML = `<div class="meta"><h3>${name}</h3><p>${line}</p>${extra ? `<p class="grip"><b>Grip:</b> ${extra}</p>` : ""}</div>`;
+  el.append(body);
+  const pick = document.createElement("div");
+  pick.className = "pickrow";
+  pick.innerHTML = `<label><input type="checkbox" data-id="${id}"> Pick</label><textarea data-note="${id}" placeholder="Note: how it felt, what to change"></textarea>`;
+  el.append(pick);
+  host.append(el);
+}
+for (const [k, v] of Object.entries(V)) {
+  const panel = document.createElement("div"); panel.className = "panel";
+  const card = document.createElement("div"); card.className = "card";
+  const samples = SAMPLES();
+  samples.forEach((s) => card.append(v.make(s)));
+  const out = document.createElement("p"); out.className = "out";
+  const tickOut = () => { out.textContent = samples.map((s) => `${s.label.toLowerCase()}: ${s.value}`).join(" · "); requestAnimationFrame(tickOut); };
+  tickOut();
+  panel.append(card, out);
+  option(document.getElementById("sliders"), `slider-${k}`, v.name, v.line, v.grip, panel);
+}
+for (const [k, v] of Object.entries(C)) option(document.getElementById("compare"), `compare-${k}`, v.name, v.line, "", v.make());
+
+const status = document.getElementById("status");
+const picks = () => [...document.querySelectorAll("[data-id]")].map((c) => ({
+  option: c.closest(".opt").querySelector("h3").textContent, picked: c.checked,
+  note: document.querySelector(`[data-note="${c.dataset.id}"]`).value.trim(),
+})).filter((p) => p.picked || p.note);
+document.addEventListener("input", () => { const n = picks().filter((p) => p.picked).length; status.textContent = n ? `${n} picked` : "Nothing ticked yet"; });
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  const ta = Object.assign(document.createElement("textarea"), { value: text });
+  ta.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(ta); ta.focus(); ta.select();
+  let ok = false; try { ok = document.execCommand("copy"); } catch {}
+  ta.remove(); return ok;
+}
+document.getElementById("copy").addEventListener("click", async () => {
+  const json = JSON.stringify(picks(), null, 2);
+  status.textContent = (await copyText(json)) ? "Copied. Paste it in chat." : "Copy was blocked: tell me your picks in chat.";
+});
+</script>
+</body>
+</html>

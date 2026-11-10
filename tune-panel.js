@@ -14,7 +14,7 @@
  */
 import THEMES from "./themes/index.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
 const TAG = "tune-panel";
 const MIN_W = 280;
 const MAX_W = 520;
@@ -377,9 +377,13 @@ const store = {
 function themeCss(theme) {
   const vars = (o) => Object.entries(o).map(([k, v]) => `--tune-${k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}:${v};`).join("");
   const common = vars({ font: theme.font, mono: theme.mono, radius: theme.radius, radiusSm: theme.radiusSm });
-  return `:host{${common}${vars(theme.light)}color-scheme:light}
-@media (prefers-color-scheme: dark){:host(:not([scheme=light])){${vars(theme.dark)}color-scheme:dark}}
-:host([scheme=dark]){${vars(theme.dark)}color-scheme:dark}`;
+  // The handle: a grey mixed from the theme's own text colour, multiplied in light and screened in dark,
+  // so the label and number read straight through it in every theme.
+  const knobLight = "--tune-knob:color-mix(in srgb,var(--tune-text) 45%,white);--tune-knob-blend:multiply;";
+  const knobDark = "--tune-knob:color-mix(in srgb,var(--tune-text) 45%,black);--tune-knob-blend:screen;";
+  return `:host{${common}${vars(theme.light)}${knobLight}color-scheme:light}
+@media (prefers-color-scheme: dark){:host(:not([scheme=light])){${vars(theme.dark)}${knobDark}color-scheme:dark}}
+:host([scheme=dark]){${vars(theme.dark)}${knobDark}color-scheme:dark}`;
 }
 
 /* ================================================================== styles */
@@ -420,7 +424,22 @@ h2{flex:1;min-width:0;margin:0;font-size:15px;font-weight:650;letter-spacing:-.0
 .bar{position:relative;user-select:none;-webkit-user-select:none;display:flex;align-items:center;min-height:var(--tune-row);border-radius:var(--tune-radius-sm);background:var(--tune-field);overflow:hidden}
 .fill{position:absolute;inset:0 auto 0 0;background:var(--tune-fill);pointer-events:none}
 .tick{position:absolute;top:10px;bottom:10px;width:2px;margin-left:-1px;background:var(--tune-text);opacity:.3;pointer-events:none}
-.hit{position:absolute;inset:0;border-radius:inherit;cursor:ew-resize;touch-action:none}
+.hit{position:absolute;inset:0;border-radius:inherit;cursor:pointer;touch-action:none}
+.drag .hit{cursor:grabbing}
+.bw{position:relative}
+.knob{position:absolute;top:0;bottom:0;width:6px;margin-left:-3px;pointer-events:none;background:var(--tune-knob);mix-blend-mode:var(--tune-knob-blend);
+  clip-path:polygon(calc(50% - 1px) 0,calc(50% + 1px) 0,calc(50% + 1px) 4px,100% 4px,100% calc(100% - 4px),calc(50% + 1px) calc(100% - 4px),
+    calc(50% + 1px) 100%,calc(50% - 1px) 100%,calc(50% - 1px) calc(100% - 4px),0 calc(100% - 4px),0 4px,calc(50% - 1px) 4px);
+  transition:width .12s,margin .12s}
+.bar:hover .knob,.bar.drag .knob{width:8px;margin-left:-4px}
+.ghost{position:absolute;top:12px;bottom:12px;width:2px;margin-left:-1px;background:var(--tune-text);opacity:0;pointer-events:none}
+.bar:hover:not(.drag) .ghost{opacity:.2}
+.bub{position:absolute;z-index:4;bottom:calc(100% + 5px);padding:3px 8px;border-radius:6px;background:var(--tune-text);color:var(--tune-surface);
+  font:500 12px var(--tune-mono);white-space:nowrap;pointer-events:none;opacity:0;transform:translateX(-50%) translateY(4px);transition:opacity .12s,transform .12s}
+.bub::after{content:"";position:absolute;left:50%;top:100%;margin-left:-4px;border:4px solid transparent;border-top-color:var(--tune-text)}
+.bw.below .bub{bottom:auto;top:calc(100% + 5px)}
+.bw.below .bub::after{top:auto;bottom:100%;border-top-color:transparent;border-bottom-color:var(--tune-text)}
+.bw.drag .bub{opacity:1;transform:translateX(-50%)}
 button.hit{border:0;background:none;padding:0;cursor:pointer}
 .over{position:relative;display:flex;align-items:center;gap:2px;width:100%;min-height:var(--tune-row);padding:0 6px 0 12px;pointer-events:none}
 .over > :not(.lab){pointer-events:auto}
@@ -773,8 +792,9 @@ class TunePanel extends Base {
     const rs = h("button", { class: "rs", type: "button", "aria-label": `Reset ${node.label}`, title: "Reset to default", onclick: () => this._apply(node, clone(node.def)) }, ICON.reset());
     const over = h("div", { class: "over" }, h("span", { class: "lab", "aria-hidden": "true" }, node.label, h("span", { class: "ed" }, " · edited")), rs, ...end);
     const bar = h("div", { class: "bar" }, hit, over);
-    const wrap = node.hint ? h("div", { class: "body" }, bar, h("p", { class: "hint" }, node.hint)) : bar;
-    return { bar, wrap, mark: (on) => bar.classList.toggle("off", on) };
+    const bw = h("div", { class: "bw" }, bar);
+    const wrap = node.hint ? h("div", { class: "body" }, bw, h("p", { class: "hint" }, node.hint)) : bw;
+    return { bar, bw, wrap, mark: (on) => bar.classList.toggle("off", on) };
   }
 
   _number(node) {
@@ -785,27 +805,43 @@ class TunePanel extends Base {
     const tick = h("span", { class: "tick", "aria-hidden": "true", style: `left:${pct(node.def)}%` });
     const hit = h("div", { class: "hit", role: "slider", tabindex: 0, "aria-label": node.label, "aria-valuemin": node.min, "aria-valuemax": node.max });
     const input = h("input", { class: "val", type: "text", inputmode: "decimal", spellcheck: "false", autocomplete: "off", "aria-label": `${node.label}, type a value` });
+    const knob = h("span", { class: "knob", "aria-hidden": "true" });
+    const ghost = h("span", { class: "ghost", "aria-hidden": "true" });
+    const bub = h("span", { class: "bub", "aria-hidden": "true" });
     const row = this._row(node, hit, input, h("span", { class: "unit", "aria-hidden": "true" }, node.unit));
-    row.bar.prepend(fill, tick);
-    const set = (v) => this._apply(node, v);
+    row.bar.prepend(fill, tick, ghost, knob);
+    row.bw.append(bub);
+    const set = (v) => { if (v !== read(node)) this._apply(node, v); };
 
+    // Where a click would land, while hovering.
+    hit.addEventListener("pointermove", (e) => {
+      const r = row.bar.getBoundingClientRect();
+      ghost.style.left = `${clamp(e.clientX - r.left, 0, r.width)}px`;
+    });
+    // Absolute: the value is wherever the pointer is, so the handle stays under it. Shift slows it to a tenth
+    // from where it is; Alt snaps to ten steps.
     hit.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return; // no preventDefault: the mouse focuses the row without a keyboard ring
       const rect = row.bar.getBoundingClientRect();
-      const startX = e.clientX;
-      let x0 = startX, v0 = read(node), mode = modifierOf(e), moved = false;
-      const move = (ev) => {
-        if (!moved && Math.abs(ev.clientX - startX) < 3) return;
-        if (!moved) { moved = true; x0 = ev.clientX; }
+      const scroller = this.shadowRoot.querySelector(".scroll").getBoundingClientRect();
+      row.bw.classList.toggle("below", rect.top - scroller.top < 34); // no room above: the bubble goes under
+      let fine = null;
+      const apply = (ev) => {
         const m = modifierOf(ev);
-        if (m !== mode) { x0 = ev.clientX; v0 = read(node); mode = m; }
-        const per = ((node.max - node.min) / rect.width) * (mode === "fine" ? 0.1 : 1);
-        const v = snap(v0 + (ev.clientX - x0) * per, range, mode);
-        if (v !== read(node)) set(v);
+        if (m === "fine") {
+          fine ??= { x: ev.clientX, v: read(node) };
+          set(snap(fine.v + ((ev.clientX - fine.x) / rect.width) * (node.max - node.min) * SCALE.fine, range, "fine"));
+        } else {
+          fine = null;
+          set(snap(node.min + clamp((ev.clientX - rect.left) / rect.width, 0, 1) * (node.max - node.min), range, m));
+        }
       };
-      drag(hit, e, move, (ev) => {
-        // A click without a drag jumps to that spot, like a native slider.
-        if (!moved && ev.type === "pointerup") set(snap(node.min + ((ev.clientX - rect.left) / rect.width) * (node.max - node.min), range));
+      row.bar.classList.add("drag");
+      row.bw.classList.add("drag");
+      apply(e);
+      drag(hit, e, apply, () => {
+        row.bar.classList.remove("drag");
+        row.bw.classList.remove("drag");
       });
     });
     hit.addEventListener("keydown", (e) => {
@@ -837,7 +873,11 @@ class TunePanel extends Base {
     const view = {
       update: (force) => {
         const v = read(node);
-        fill.style.width = `${clamp(pct(v), 0, 100)}%`;
+        const p = `${clamp(pct(v), 0, 100)}%`;
+        fill.style.width = p;
+        knob.style.left = p;
+        bub.style.left = p;
+        bub.textContent = `${fmt(v)}${/^[a-z]/i.test(node.unit) ? " " : ""}${node.unit}`; // 1000 px, 18°
         if (force || this.shadowRoot.activeElement !== input) input.value = fmt(v);
         hit.setAttribute("aria-valuenow", v);
         hit.setAttribute("aria-valuetext", `${fmt(v)}${node.unit}`);
