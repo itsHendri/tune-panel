@@ -12,7 +12,7 @@ Plain HTML page (pin the version; never an unpinned URL):
 
 ```html
 <script type="module">
-import { tune } from "https://cdn.jsdelivr.net/gh/itsHendri/tune-panel@0.1.1/tune-panel.js";
+import { tune } from "https://cdn.jsdelivr.net/gh/itsHendri/tune-panel@0.1.2/tune-panel.js";
 
 const CFG = { max: 12, spring: { stiffness: 420, damping: 20, mass: 1 }, push: true };   // what the page reads
 
@@ -23,7 +23,7 @@ tune(CFG, { max: { min: 0, max: 20, step: 0.5, unit: "°" } }, { title: "Hover t
 Vite or React app:
 
 ```bash
-npm i -D github:itsHendri/tune-panel#0.1.1
+npm i -D github:itsHendri/tune-panel#0.1.2
 ```
 
 ```js
@@ -62,7 +62,7 @@ spring, a nested object as a section).
 ## Options
 
 `title`, `theme` (`"neutral"`, `"hendri"`, `"fontsake"`, or an object shaped like `themes/neutral.js`),
-`scheme` (`"auto"`, `"light"`, `"dark"`), `fps` (an FPS graph), `snapshots` (A/B, on by default),
+`scheme` (`"auto"`, `"light"`, `"dark"`), `fps` (an FPS graph), `compare` (hold to compare, on by default),
 `width` (340), `collapsed`, `onChange({ path, value, values })`.
 
 The element `tune()` returns has `values`, `set(path, value)`, `refresh()` (after the page changed `cfg` itself),
@@ -71,14 +71,15 @@ The element `tune()` returns has `values`, `set(path, value)`, `refresh()` (afte
 ## Keys and pointer
 
 * Press anywhere on a bar and the handle jumps under your pointer and stays there while you drag; a bubble shows the
-  value. Shift slows the drag to a tenth from where it is, Alt snaps to ten steps. A faint line shows where a click lands.
+  value. Shift slows the drag to a tenth from where it is, Alt snaps to ten steps.
 * With a bar focused: arrows step, Page Up and Down step coarse, Home and End go to the ends, Enter types a value,
   Delete resets it.
-* A changed value shows a bar on its left edge, "edited" after its label and a reset button; a tick marks the default.
 * Copy values copies `cfg` as JSON. Where the browser refuses the clipboard (embedded browsers), it falls back to a
   hidden textarea, then shows the JSON selected in the panel.
 * Paste values takes the JSON back: out-of-range numbers are clamped, wrong types and unknown keys are reported.
-* A and B: tune one version, switch, tune another, flip between them. Copy takes the one showing.
+* Compare: once something has changed, a pill floats on the page at the panel's top edge. Hold it, or hold the
+  backslash key anywhere outside a text field, and the page shows the values from the code; let go and your edits are back.
+* The footer is Copy values plus an arrow; the arrow opens Paste values and Reset all.
 
 ## Themes
 

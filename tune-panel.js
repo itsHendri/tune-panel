@@ -14,7 +14,7 @@
  */
 import THEMES from "./themes/index.js";
 
-export const VERSION = "0.1.1";
+export const VERSION = "0.1.2";
 const TAG = "tune-panel";
 const MIN_W = 280;
 const MAX_W = 520;
@@ -364,8 +364,8 @@ const icon = (d, size = 16) => s("svg", { width: size, height: size, viewBox: "0
 const ICON = {
   collapse: () => icon("M6 3l5 5-5 5M13 2v12"),
   expand: () => icon("M10 3L5 8l5 5M3 2v12"),
-  reset: () => icon("M3.5 8a4.5 4.5 0 1 0 1.4-3.3M3 2.5V5h2.5", 15),
   chevron: () => icon("M4 6l4 4 4-4", 14),
+  up: () => icon("M4 10l4-4 4 4"),
 };
 
 const store = {
@@ -405,10 +405,15 @@ h2{flex:1;min-width:0;margin:0;font-size:15px;font-weight:650;letter-spacing:-.0
 .icon{flex:none;width:36px;height:36px;border:0;border-radius:var(--tune-radius-sm);background:var(--tune-field);display:grid;place-items:center;cursor:pointer}
 .icon:hover{background:var(--tune-fill)}
 
-.snap{display:flex;gap:3px;margin:0 14px 12px;padding:3px;background:var(--tune-field);border-radius:var(--tune-radius-sm)}
-.snap button{flex:1;min-height:34px;border:0;background:none;border-radius:calc(var(--tune-radius-sm) - 2px);font-weight:600;font-size:13px;color:var(--tune-muted);cursor:pointer}
-.snap button[aria-checked=true]{background:var(--tune-surface);color:var(--tune-text);box-shadow:0 1px 2px rgb(0 0 0 / .12)}
-.snap button[aria-checked=true]::after{content:" · live";font-weight:500;color:var(--tune-muted)}
+/* Compare: a pill floating on the page at the panel's top-left edge, shown once something changed. */
+.cmp{position:absolute;z-index:5;top:12px;right:calc(100% + 12px);display:flex;align-items:center;gap:8px;padding:8px 12px;border:0;border-radius:999px;
+  background:var(--tune-text);color:var(--tune-surface);font:500 13px var(--tune-font);white-space:nowrap;box-shadow:0 6px 20px rgb(0 0 0 / .18);
+  cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;transition:opacity .2s,transform .2s}
+.cmp kbd{font:500 12px var(--tune-mono);padding:1px 6px;border-radius:4px;background:color-mix(in srgb,var(--tune-surface) 18%,transparent)}
+.cmp[data-show=false]{opacity:0;transform:translateY(-6px);pointer-events:none;visibility:hidden}
+.cmp[aria-pressed=true]{background:var(--tune-accent);color:var(--tune-on-accent)}
+.cmp[aria-pressed=true] .k{display:none}
+:host([comparing]) .scroll{pointer-events:none;opacity:.7}
 
 .scroll{flex:1;min-height:0;overflow:auto;padding:0 12px 12px;overscroll-behavior:contain;scrollbar-width:thin}
 .card{background:var(--tune-surface);border-radius:var(--tune-radius);padding:6px;margin-bottom:10px}
@@ -423,17 +428,17 @@ h2{flex:1;min-width:0;margin:0;font-size:15px;font-weight:650;letter-spacing:-.0
 
 .bar{position:relative;user-select:none;-webkit-user-select:none;display:flex;align-items:center;min-height:var(--tune-row);border-radius:var(--tune-radius-sm);background:var(--tune-field);overflow:hidden}
 .fill{position:absolute;inset:0 auto 0 0;background:var(--tune-fill);pointer-events:none}
-.tick{position:absolute;top:10px;bottom:10px;width:2px;margin-left:-1px;background:var(--tune-text);opacity:.3;pointer-events:none}
 .hit{position:absolute;inset:0;border-radius:inherit;cursor:pointer;touch-action:none}
 .drag .hit{cursor:grabbing}
 .bw{position:relative}
-.knob{position:absolute;top:0;bottom:0;width:6px;margin-left:-3px;pointer-events:none;background:var(--tune-knob);mix-blend-mode:var(--tune-knob-blend);
-  clip-path:polygon(calc(50% - 1px) 0,calc(50% + 1px) 0,calc(50% + 1px) 4px,100% 4px,100% calc(100% - 4px),calc(50% + 1px) calc(100% - 4px),
-    calc(50% + 1px) 100%,calc(50% - 1px) 100%,calc(50% - 1px) calc(100% - 4px),0 calc(100% - 4px),0 4px,calc(50% - 1px) 4px);
-  transition:width .12s,margin .12s}
+/* The handle: a rounded band, plus a 2px stub above and below it reaching the row's edges. The pieces don't
+   overlap, so the blend never doubles up. */
+.knob{position:absolute;top:0;bottom:0;width:6px;margin-left:-3px;pointer-events:none;transition:width .12s,margin .12s}
+.knob::before,.knob::after{content:"";position:absolute;mix-blend-mode:var(--tune-knob-blend)}
+.knob::before{left:0;right:0;top:4px;bottom:4px;border-radius:3px;background:var(--tune-knob)}
+.knob::after{left:50%;top:0;bottom:0;width:2px;margin-left:-1px;border-radius:1px;
+  background:linear-gradient(var(--tune-knob) 0 4px,transparent 4px calc(100% - 4px),var(--tune-knob) calc(100% - 4px))}
 .bar:hover .knob,.bar.drag .knob{width:8px;margin-left:-4px}
-.ghost{position:absolute;top:12px;bottom:12px;width:2px;margin-left:-1px;background:var(--tune-text);opacity:0;pointer-events:none}
-.bar:hover:not(.drag) .ghost{opacity:.2}
 .bub{position:absolute;z-index:4;bottom:calc(100% + 5px);padding:3px 8px;border-radius:6px;background:var(--tune-text);color:var(--tune-surface);
   font:500 12px var(--tune-mono);white-space:nowrap;pointer-events:none;opacity:0;transform:translateX(-50%) translateY(4px);transition:opacity .12s,transform .12s}
 .bub::after{content:"";position:absolute;left:50%;top:100%;margin-left:-4px;border:4px solid transparent;border-top-color:var(--tune-text)}
@@ -444,12 +449,6 @@ button.hit{border:0;background:none;padding:0;cursor:pointer}
 .over{position:relative;display:flex;align-items:center;gap:2px;width:100%;min-height:var(--tune-row);padding:0 6px 0 12px;pointer-events:none}
 .over > :not(.lab){pointer-events:auto}
 .lab{flex:1;min-width:0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ed{display:none;font-weight:400;font-size:12px;color:var(--tune-muted)}
-.off > .over .ed,.off > .cap .ed{display:inline}
-.off::before{content:"";position:absolute;z-index:1;left:0;top:0;bottom:0;width:3px;background:var(--tune-accent);pointer-events:none}
-.rs{display:none;flex:none;width:30px;height:30px;place-items:center;border:0;border-radius:6px;background:none;color:var(--tune-muted);cursor:pointer}
-.off > .over .rs,.off > .cap .rs{display:grid}
-.rs:hover{background:var(--tune-surface);color:var(--tune-text)}
 .val{width:7ch;min-width:0;padding:6px 2px;border:0;border-radius:5px;background:none;font:500 13px var(--tune-mono);text-align:right;cursor:text}
 .val:focus{background:var(--tune-surface)}
 .unit{font:13px var(--tune-mono);color:var(--tune-muted);min-width:4px;margin-right:6px}
@@ -479,7 +478,6 @@ button.hit{border:0;background:none;padding:0;cursor:pointer}
 .action:hover{background:var(--tune-fill)}
 
 .block{position:relative;display:flex;flex-direction:column;gap:var(--tune-gap);border-radius:var(--tune-radius-sm)}
-.block.off::before{border-radius:2px}
 .cap{display:flex;align-items:center;gap:4px;min-height:30px;padding:0 4px 0 12px}
 .cap .lab{color:var(--tune-text)}
 .cap .meta{font:12px var(--tune-mono);color:var(--tune-muted)}
@@ -495,14 +493,22 @@ button.hit{border:0;background:none;padding:0;cursor:pointer}
 
 .fps{display:block;width:100%;height:30px}
 
-footer{display:grid;grid-template-columns:2fr 1fr;gap:8px;padding:12px;border-top:1px solid var(--tune-line);background:var(--tune-bg)}
+footer{position:relative;padding:12px;border-top:1px solid var(--tune-line);background:var(--tune-bg)}
+.split{display:flex;gap:2px}
+.split .pri{flex:1;border-radius:var(--tune-radius) 4px 4px var(--tune-radius)}
+.split .more{flex:none;width:52px;border-radius:4px var(--tune-radius) var(--tune-radius) 4px;display:grid;place-items:center}
+.split .more svg{transition:transform .15s}
+.split .more[aria-expanded=true] svg{transform:rotate(180deg)}
+.menu{position:absolute;z-index:6;right:12px;bottom:calc(100% - 4px);min-width:200px;display:flex;flex-direction:column;padding:6px;border-radius:var(--tune-radius);
+  background:var(--tune-surface);box-shadow:0 10px 30px rgb(0 0 0 / .18),0 0 0 1px var(--tune-line)}
+.menu[hidden]{display:none}
+.menu button{min-height:40px;padding:0 12px;border:0;border-radius:var(--tune-radius-sm);background:none;text-align:left;font-weight:500;cursor:pointer}
+.menu button:hover,.menu button:focus-visible{background:var(--tune-field)}
 .pri{min-height:52px;border:0;border-radius:var(--tune-radius);background:var(--tune-accent);color:var(--tune-on-accent);font-weight:650;font-size:15px;cursor:pointer}
 .pri:hover{filter:brightness(1.12)}
 .sec{min-height:52px;border:1.5px solid color-mix(in srgb,var(--tune-text) 22%,transparent);border-radius:var(--tune-radius);background:var(--tune-surface);font-weight:600;cursor:pointer}
 .sec:hover{border-color:var(--tune-text)}
-.lnk{grid-column:1/-1;justify-self:center;padding:4px 8px;border:0;background:none;color:var(--tune-muted);font-size:13px;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-.lnk:hover{color:var(--tune-text)}
-.paste{grid-column:1/-1;display:grid;grid-template-columns:2fr 1fr;gap:8px}
+.paste{display:grid;grid-template-columns:2fr 1fr;gap:8px}
 .paste textarea{grid-column:1/-1;min-height:150px;padding:10px;border:1px solid var(--tune-line);border-radius:var(--tune-radius-sm);background:var(--tune-surface);
   font:12px/1.45 var(--tune-mono);resize:vertical}
 .paste .pri,.paste .sec{min-height:44px}
@@ -519,7 +525,6 @@ footer{display:grid;grid-template-columns:2fr 1fr;gap:8px;padding:12px;border-to
   border:0;border-left:1px solid var(--tune-line);background:var(--tune-bg);color:var(--tune-text);font:600 13px var(--tune-font);cursor:pointer}
 :host([collapsed]) .rail{display:flex}
 .rail span{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
-.rail .edits{font-weight:500;color:var(--tune-muted)}
 .rail:hover{background:var(--tune-field)}
 .rail:focus-visible{outline-offset:-3px}
 @media (prefers-reduced-motion: reduce){*{transition:none !important}}
@@ -545,8 +550,6 @@ class TunePanel extends Base {
     this.options = options;
     this.nodes = build(cfg, schema, "");
     this.leaves = leaves(this.nodes);
-    this.snapshots = { A: null, B: null };
-    this.active = "A";
     const saved = store.get();
     this.width = clamp(saved.width ?? options.width ?? 340, MIN_W, MAX_W);
     this.closed = new Set(saved.closed ?? []);
@@ -582,13 +585,13 @@ class TunePanel extends Base {
     this._footerIdle();
 
     const parts = [header];
-    if (options.snapshots !== false && this.leaves.length) parts.push(this._snapBar());
     parts.push(scroll, this._footer, this._live);
     const panel = h("section", { class: "panel", "aria-labelledby": "title" }, ...parts);
 
     this._rail = h("button", { class: "rail", type: "button", "aria-label": `Open the tune panel: ${title}`, "aria-expanded": "false", onclick: () => this.collapse(false) },
-      ICON.expand(), h("span", {}, `Tune · ${title}`), h("span", { class: "edits" }));
+      ICON.expand(), h("span", {}, `Tune · ${title}`));
     root.append(this._grip(), panel, this._rail);
+    if (options.compare !== false && this.leaves.length) root.append(this._comparePill());
 
     this._applyHostStyle();
     this.collapse(saved.collapsed ?? options.collapsed ?? false, false);
@@ -651,12 +654,20 @@ class TunePanel extends Base {
 
   disconnectedCallback() {
     this._stopLoop();
+    window.removeEventListener("keydown", this._onKey, true);
+    window.removeEventListener("keyup", this._onKey, true);
+    window.removeEventListener("blur", this._onBlur);
     document.getElementById("tune-panel-push")?.remove();
     document.documentElement.style.removeProperty("--tune-panel-push");
   }
 
   connectedCallback() {
     if (this.cfg) { this._push(); if (!this.hasAttribute("collapsed")) this._startLoop(); }
+    if (this.options?.compare !== false) {
+      window.addEventListener("keydown", this._onKey, true);
+      window.addEventListener("keyup", this._onKey, true);
+      window.addEventListener("blur", this._onBlur);
+    }
   }
 
   /* ---------------------------------------------------------- layout */
@@ -731,15 +742,10 @@ class TunePanel extends Base {
     return node.kind === "colour" ? hex6(v) !== hex6(node.def) : !same(v, node.def);
   }
 
-  /** The edited marks: per row, the count per section, and the total on the collapsed rail. */
+  /** Rows carry no edited marks; the compare button says whether anything changed. */
   _marks() {
-    for (const [node, view] of this._views) if (view.mark) view.mark(this._edited(node));
-    for (const { node, count } of this._sections) {
-      const n = leaves(node.children).filter((l) => this._edited(l)).length;
-      count.textContent = n ? `${n} edited` : "";
-    }
-    const total = this.leaves.filter((l) => this._edited(l)).length;
-    if (this._rail) this._rail.querySelector(".edits").textContent = total ? `${total} edited` : "";
+    if (!this._cmp || this._held) return;
+    this._cmp.dataset.show = String(this.leaves.some((l) => this._edited(l)));
   }
 
   _say(text) {
@@ -768,9 +774,8 @@ class TunePanel extends Base {
     const id = `s${this._sections.length}`;
     const open = !(this.closed.has(node.path) || (node.collapsed && !this.closed.has(`open:${node.path}`)));
     const body = h("div", { class: "body", id, hidden: !open }, this._render(node.children));
-    const count = h("span", { class: "count" });
     const head = h("button", { class: "head", type: "button", "aria-expanded": String(open), "aria-controls": id },
-      h("span", {}, node.label), count, h("span", { class: "chev" }, ICON.chevron()));
+      h("span", {}, node.label), h("span", { class: "chev", style: "margin-left:auto" }, ICON.chevron()));
     head.addEventListener("click", () => {
       const isOpen = head.getAttribute("aria-expanded") === "true";
       head.setAttribute("aria-expanded", String(!isOpen));
@@ -781,20 +786,19 @@ class TunePanel extends Base {
       else if (node.collapsed) this.closed.add(`open:${node.path}`);
       store.set({ closed: [...this.closed] });
     });
-    this._sections.push({ node, head, count });
+    this._sections.push({ node, head });
     return h("div", { class: "card" }, head, body);
   }
 
   /* ---------------------------------------------------------- rows */
 
-  /** The shared row: a hit area under a label, the edited mark, a reset button and the row's own end. */
+  /** The shared row: a hit area under a label and the row's own end. */
   _row(node, hit, ...end) {
-    const rs = h("button", { class: "rs", type: "button", "aria-label": `Reset ${node.label}`, title: "Reset to default", onclick: () => this._apply(node, clone(node.def)) }, ICON.reset());
-    const over = h("div", { class: "over" }, h("span", { class: "lab", "aria-hidden": "true" }, node.label, h("span", { class: "ed" }, " · edited")), rs, ...end);
+    const over = h("div", { class: "over" }, h("span", { class: "lab", "aria-hidden": "true" }, node.label), ...end);
     const bar = h("div", { class: "bar" }, hit, over);
     const bw = h("div", { class: "bw" }, bar);
     const wrap = node.hint ? h("div", { class: "body" }, bw, h("p", { class: "hint" }, node.hint)) : bw;
-    return { bar, bw, wrap, mark: (on) => bar.classList.toggle("off", on) };
+    return { bar, bw, wrap };
   }
 
   _number(node) {
@@ -802,22 +806,15 @@ class TunePanel extends Base {
     const pct = (v) => ((v - node.min) / (node.max - node.min || 1)) * 100;
     const fmt = (v) => String(roundTo(v, node.step * SCALE.fine));
     const fill = h("span", { class: "fill" });
-    const tick = h("span", { class: "tick", "aria-hidden": "true", style: `left:${pct(node.def)}%` });
     const hit = h("div", { class: "hit", role: "slider", tabindex: 0, "aria-label": node.label, "aria-valuemin": node.min, "aria-valuemax": node.max });
     const input = h("input", { class: "val", type: "text", inputmode: "decimal", spellcheck: "false", autocomplete: "off", "aria-label": `${node.label}, type a value` });
     const knob = h("span", { class: "knob", "aria-hidden": "true" });
-    const ghost = h("span", { class: "ghost", "aria-hidden": "true" });
     const bub = h("span", { class: "bub", "aria-hidden": "true" });
     const row = this._row(node, hit, input, h("span", { class: "unit", "aria-hidden": "true" }, node.unit));
-    row.bar.prepend(fill, tick, ghost, knob);
+    row.bar.prepend(fill, knob);
     row.bw.append(bub);
     const set = (v) => { if (v !== read(node)) this._apply(node, v); };
 
-    // Where a click would land, while hovering.
-    hit.addEventListener("pointermove", (e) => {
-      const r = row.bar.getBoundingClientRect();
-      ghost.style.left = `${clamp(e.clientX - r.left, 0, r.width)}px`;
-    });
     // Absolute: the value is wherever the pointer is, so the handle stays under it. Shift slows it to a tenth
     // from where it is; Alt snaps to ten steps.
     hit.addEventListener("pointerdown", (e) => {
@@ -882,7 +879,6 @@ class TunePanel extends Base {
         hit.setAttribute("aria-valuenow", v);
         hit.setAttribute("aria-valuetext", `${fmt(v)}${node.unit}`);
       },
-      mark: row.mark,
     };
     this._views.set(node, view);
     view.update();
@@ -900,7 +896,6 @@ class TunePanel extends Base {
         pill.textContent = on ? "On" : "Off";
         row.bar.classList.toggle("on", on);
       },
-      mark: row.mark,
     };
     this._views.set(node, view);
     view.update();
@@ -959,7 +954,6 @@ class TunePanel extends Base {
         picker.value = hex6(v);
         swatch.style.background = v;
       },
-      mark: row.mark,
     };
     this._views.set(node, view);
     view.update();
@@ -977,8 +971,7 @@ class TunePanel extends Base {
   }
 
   _caption(node, ...extra) {
-    const rs = h("button", { class: "rs", type: "button", "aria-label": `Reset ${node.label}`, title: "Reset to default", onclick: () => this._apply(node, clone(node.def)) }, ICON.reset());
-    return h("div", { class: "cap" }, h("span", { class: "lab" }, node.label, h("span", { class: "ed" }, " · edited")), ...extra, rs);
+    return h("div", { class: "cap" }, h("span", { class: "lab" }, node.label), ...extra);
   }
 
   _spring(node) {
@@ -1073,7 +1066,6 @@ class TunePanel extends Base {
         h2.setAttribute("aria-valuetext", `x ${x2}, y ${y2}`);
         if (force || this.shadowRoot.activeElement !== text) text.value = `${x1}, ${y1}, ${x2}, ${y2}`;
       },
-      mark: (on) => block.classList.toggle("off", on),
     };
     this._views.set(node, view);
     view.update();
@@ -1143,44 +1135,89 @@ class TunePanel extends Base {
     label.textContent = `${Math.round(avg)} fps`;
   }
 
-  /* ---------------------------------------------------------- snapshots */
+  /* ---------------------------------------------------------- compare */
 
-  _snapBar() {
-    const btn = (k) => h("button", { type: "button", role: "radio", "aria-checked": String(k === this.active), onclick: () => this._switch(k) }, k);
-    this._snapBtns = { A: btn("A"), B: btn("B") };
-    const bar = h("div", { class: "snap", role: "radiogroup", "aria-label": "Snapshot: tune two versions and flip between them" }, this._snapBtns.A, this._snapBtns.B);
-    bar.addEventListener("keydown", (e) => {
-      if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
-      e.preventDefault();
-      const k = this.active === "A" ? "B" : "A";
-      this._switch(k);
-      this._snapBtns[k].focus();
+  /**
+   * Hold to see the page with the values from the code; let go to get your edits back. The pill floats on the page at
+   * the panel's top edge once something has changed, and the backslash key does the same from anywhere.
+   */
+  _comparePill() {
+    this._cmpLabel = h("span", {}, "Hold");
+    this._cmp = h("button", { class: "cmp", type: "button", "aria-pressed": "false", "data-show": "false",
+      "aria-label": "Hold to compare with the original values (or hold the backslash key)" },
+      this._cmpLabel, h("kbd", { class: "k", "aria-hidden": "true" }, "\\"), h("span", { class: "k" }, "to compare"));
+    const btn = this._cmp;
+    btn.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      try { btn.setPointerCapture(e.pointerId); } catch {} // keeps the hold if the pointer slides off
+      this._compare(true);
     });
-    return bar;
+    for (const n of ["pointerup", "pointercancel", "lostpointercapture"]) btn.addEventListener(n, () => this._compare(false));
+    btn.addEventListener("keydown", (e) => {
+      if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); this._compare(true); }
+    });
+    btn.addEventListener("keyup", (e) => { if (e.key === " " || e.key === "Enter") this._compare(false); });
+    return btn;
   }
 
-  _switch(k) {
-    if (k === this.active) return;
-    this.snapshots[this.active] = new Map(this.leaves.map((n) => [n, clone(read(n))]));
-    const target = this.snapshots[k];
-    if (target) for (const [n, v] of target) this._apply(n, clone(v), false);
-    this.active = k;
-    for (const [key, b] of Object.entries(this._snapBtns)) {
-      b.setAttribute("aria-checked", String(key === k));
-      b.tabIndex = key === k ? 0 : -1;
+  _compare(on) {
+    if (!this._cmp || on === !!this._held) return;
+    if (on) {
+      if (!this.leaves.some((l) => this._edited(l))) return;
+      this._held = new Map(this.leaves.map((n) => [n, clone(read(n))]));
+      for (const n of this.leaves) this._apply(n, clone(n.def), false);
+      this._cmpLabel.textContent = "Showing the original";
+    } else {
+      for (const [n, v] of this._held) this._apply(n, v, false);
+      this._held = null;
+      this._cmpLabel.textContent = "Hold";
     }
+    this.toggleAttribute("comparing", on);
+    this._cmp.setAttribute("aria-pressed", String(on));
     this._afterChange(null);
-    this._say(target ? `Showing ${k}.` : `Showing ${k}, a copy of ${k === "A" ? "B" : "A"} to tune.`);
+    this._say(on ? "Showing the original values." : "Showing your values.");
   }
+
+  /** The backslash key, held anywhere on the page outside a text field, compares too (Lightroom's before and after). */
+  _onKey = (e) => {
+    if (e.key !== "\\" || e.repeat || e.metaKey || e.ctrlKey) return;
+    const el = e.composedPath()[0];
+    if (el instanceof Element && el.closest?.("input, textarea, select, [contenteditable]")) return;
+    if (e.type === "keydown") { e.preventDefault(); this._compare(true); } else this._compare(false);
+  };
+  _onBlur = () => this._compare(false);
 
   /* ---------------------------------------------------------- footer and paste */
 
+  /** Copy values, and an arrow that opens the two rare actions above it. */
   _footerIdle() {
-    this._footer.replaceChildren(
-      this._copyBtn,
-      h("button", { class: "sec", type: "button", onclick: () => this.reset() }, "Reset all"),
-      h("button", { class: "lnk", type: "button", onclick: () => this._footerPaste() }, "Paste values"),
-    );
+    const more = h("button", { class: "pri more", type: "button", "aria-label": "More actions", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": "menu" }, ICON.up());
+    const item = (label, run) => h("button", { type: "button", role: "menuitem", tabindex: -1, onclick: () => { close(); run(); } }, label);
+    const items = [item("Paste values", () => this._footerPaste()), item("Reset all", () => { this.reset(); this._copyBtn.focus(); })];
+    const menu = h("div", { class: "menu", id: "menu", role: "menu", "aria-label": "More actions", hidden: true }, items);
+    const outside = (e) => { if (!e.composedPath().some((n) => n === menu || n === more)) close(); };
+    const open = () => {
+      menu.hidden = false;
+      more.setAttribute("aria-expanded", "true");
+      items[0].focus();
+      document.addEventListener("pointerdown", outside, true);
+    };
+    function close(refocus) {
+      menu.hidden = true;
+      more.setAttribute("aria-expanded", "false");
+      document.removeEventListener("pointerdown", outside, true);
+      if (refocus) more.focus();
+    }
+    more.addEventListener("click", () => (menu.hidden ? open() : close()));
+    more.addEventListener("keydown", (e) => { if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); open(); } });
+    menu.addEventListener("keydown", (e) => {
+      const i = items.indexOf(this.shadowRoot.activeElement);
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus(); }
+      if (e.key === "Escape") { e.preventDefault(); close(true); }
+      if (e.key === "Tab") close();
+    });
+    this._copyBtn.textContent = "Copy values";
+    this._footer.replaceChildren(h("div", { class: "split" }, this._copyBtn, more), menu);
   }
 
   /** The JSON, selected, for a browser that won't let a page write the clipboard. */
@@ -1203,7 +1240,7 @@ class TunePanel extends Base {
       msg.textContent = result.message;
       if (result.ok && !result.skipped.length) { this._footerIdle(); this._say(result.message); this._copyBtn.focus(); }
     };
-    const cancel = () => { this._footerIdle(); this._footer.querySelector(".lnk").focus(); };
+    const cancel = () => { this._footerIdle(); this._footer.querySelector(".more").focus(); };
     ta.addEventListener("keydown", (e) => {
       if (e.key === "Escape") cancel();
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) apply();
@@ -1268,7 +1305,7 @@ if (globalThis.customElements && !customElements.get(TAG)) customElements.define
  *   false                                    hide that key
  *
  * options: { title, theme: "neutral" | "hendri" | ... | { ...vars }, scheme: "auto" | "light" | "dark",
- *            fps: false, snapshots: true, width: 340, collapsed: false, onChange({ path, value, values }) }
+ *            fps: false, compare: true, width: 340, collapsed: false, onChange({ path, value, values }) }
  */
 export function tune(cfg, schema = {}, options = {}) {
   if (typeof document === "undefined") return null;

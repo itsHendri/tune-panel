@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tune-panel footer</title>
+<style>
+  :root{--bg:#ecece9;--ink:#18181a;--dim:#5d5d59;--hair:#d3d3cf;--ui:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
+  .neutral{--t-bg:#f1f1ef;--t-surface:#fff;--t-field:#ebebe8;--t-fill:#d6d6d1;--t-text:#18181a;--t-muted:#55554f;--t-line:#e0e0dc;--t-accent:#18181a;--t-on:#fff;--t-r:10px;--t-rs:7px;--t-font:var(--ui)}
+  .hendri{--t-bg:#f3f6f8;--t-surface:#fff;--t-field:#f3f6f8;--t-fill:#c6d4db;--t-text:#1f262d;--t-muted:#40525e;--t-line:#c6d4db;--t-accent:#574cff;--t-on:#fff;--t-r:16px;--t-rs:8px;--t-font:"Space Grotesk",var(--ui)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--ui);padding:40px 40px 120px}
+  h1{font-size:22px;margin:0 0 6px} h2.part{font-size:18px;margin:56px 0 4px}
+  .intro{max-width:780px;color:var(--dim);margin:0 0 20px}
+  .themes{display:flex;gap:8px;margin:0 0 28px}
+  .themes button{padding:6px 12px;border:1px solid var(--hair);border-radius:6px;background:#fff;cursor:pointer;font:inherit}
+  .themes button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(560px,1fr));gap:36px 28px}
+  .opt{display:flex;flex-direction:column;gap:10px}
+  .meta h3{font-size:16px;margin:0} .meta p{margin:2px 0 0;color:var(--dim)}
+  .pickrow{display:flex;gap:10px;align-items:flex-start}
+  .pickrow label{display:flex;gap:8px;align-items:center;font-weight:600;padding:8px 12px;border:1px solid var(--hair);border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap}
+  .pickrow input{width:18px;height:18px;margin:0}
+  .pickrow textarea{flex:1;min-height:40px;font:13px/1.4 var(--ui);padding:8px 10px;border:1px solid var(--hair);border-radius:6px;resize:vertical}
+  .foot{position:fixed;left:0;right:0;bottom:0;padding:14px 40px;background:rgba(236,236,233,.94);border-top:1px solid var(--hair);display:flex;gap:16px;align-items:center;z-index:20}
+  .foot button{font:600 15px var(--ui);padding:12px 22px;border-radius:6px;border:0;background:var(--ink);color:#fff;cursor:pointer}
+  .foot span{color:var(--dim)}
+  :focus{outline:none} :focus-visible{outline:2px solid #2f6fed;outline-offset:2px}
+
+  /* the stage: a slice of page on the left, the bottom of the panel on the right */
+  .stage{position:relative;display:flex;height:300px;border:1px solid var(--hair);border-radius:8px;overflow:hidden;background:#fafaf8}
+  .page{flex:1;position:relative;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .page i{display:block;background:#e6e6e2;border-radius:3px}
+  .panel{position:relative;width:340px;flex:none;display:flex;flex-direction:column;background:var(--t-bg);color:var(--t-text);font:14px/1.3 var(--t-font);border-left:1px solid var(--t-line)}
+  .rows{flex:1;padding:12px;overflow:hidden}
+  .card{background:var(--t-surface);border-radius:var(--t-r);padding:6px;display:flex;flex-direction:column;gap:6px}
+  .row{position:relative;height:44px;border-radius:var(--t-rs);background:var(--t-field);display:flex;align-items:center;justify-content:space-between;padding:0 12px;overflow:hidden}
+  .row .f{position:absolute;inset:0 auto 0 0;background:var(--t-fill)}
+  .row span{position:relative} .row .n{font:500 13px var(--mono)}
+  .ft{position:relative;padding:12px;border-top:1px solid var(--t-line);background:var(--t-bg)}
+  button{font:inherit;color:inherit}
+  .pri{min-height:48px;border:0;border-radius:var(--t-r);background:var(--t-accent);color:var(--t-on);font-weight:650;font-size:15px;cursor:pointer}
+  .sec{min-height:48px;border:1.5px solid color-mix(in srgb,var(--t-text) 20%,transparent);border-radius:var(--t-r);background:var(--t-surface);font-weight:600;cursor:pointer}
+  .ghostb{border:0;background:none;color:var(--t-muted);font-size:13px;font-weight:600;cursor:pointer;padding:8px 10px;border-radius:var(--t-rs)}
+  .ghostb:hover{background:var(--t-field);color:var(--t-text)}
+  .ico{width:48px;min-height:48px;display:grid;place-items:center;border:1.5px solid color-mix(in srgb,var(--t-text) 20%,transparent);border-radius:var(--t-r);background:var(--t-surface);cursor:pointer;position:relative}
+  .ico:hover{border-color:var(--t-text)}
+  .tip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:var(--t-text);color:var(--t-surface);font:500 12px var(--ui);white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s}
+  .ico:hover .tip,.ico:focus-visible .tip{opacity:1}
+  kbd{font:500 12px var(--mono);padding:1px 6px;border-radius:4px;background:var(--t-field);color:var(--t-text);border:1px solid var(--t-line)}
+  .hint{font-size:12.5px;color:var(--t-muted);display:flex;align-items:center;gap:6px}
+  .menu{position:absolute;bottom:calc(100% - 4px);right:12px;min-width:200px;padding:6px;border-radius:var(--t-r);background:var(--t-surface);box-shadow:0 10px 30px rgb(0 0 0/.16),0 0 0 1px var(--t-line);display:none;flex-direction:column;z-index:3}
+  .menu.open{display:flex}
+  .menu button{display:flex;justify-content:space-between;align-items:center;gap:12px;border:0;background:none;padding:10px;border-radius:var(--t-rs);text-align:left;cursor:pointer;font-weight:500}
+  .menu button:hover{background:var(--t-field)}
+  .menu hr{border:0;border-top:1px solid var(--t-line);margin:4px 2px}
+  .menu .hint{padding:6px 10px}
+  .split{display:flex;gap:2px}
+  .split .pri:first-child{flex:1;border-radius:var(--t-r) 4px 4px var(--t-r)}
+  .split .pri:last-child{width:48px;border-radius:4px var(--t-r) var(--t-r) 4px;display:grid;place-items:center}
+  .bar3{display:flex;gap:4px;padding:4px;border-radius:var(--t-r);background:var(--t-field)}
+  .bar3 button{flex:1;min-height:44px;border:0;border-radius:calc(var(--t-r) - 4px);background:none;font-weight:600;cursor:pointer;color:var(--t-muted)}
+  .bar3 button:hover{background:var(--t-surface);color:var(--t-text)}
+  .bar3 .pri{flex:1.6;color:var(--t-on);background:var(--t-accent)}
+  .hicons{position:absolute;top:10px;right:12px;display:flex;gap:4px}
+  .hicons button{width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:var(--t-rs);background:var(--t-field);cursor:pointer}
+
+  /* compare hint placements */
+  .pill{position:absolute;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:var(--t-text);color:var(--t-surface);font:500 13px var(--t-font);box-shadow:0 6px 20px rgb(0 0 0/.18);white-space:nowrap;transition:opacity .2s,transform .2s;z-index:4}
+  .pill kbd{background:color-mix(in srgb,var(--t-surface) 18%,transparent);color:inherit;border-color:transparent}
+  .pill.hidden{opacity:0;transform:translateY(6px);pointer-events:none}
+  .pill.on{background:var(--t-accent);color:var(--t-on)}
+  .tryit{position:absolute;left:16px;bottom:12px;font-size:12px;color:var(--dim)}
+  .btnrow{display:flex;gap:8px}
+</style>
+</head>
+<body class="neutral">
+<h1>tune-panel: the footer, and where the compare hint lives</h1>
+<p class="intro">
+  The footer has one job that matters (Copy values) and two you rarely need (Reset all, Paste values). Six ways to stack them, all clickable.
+  Below that, four places for the compare shortcut, now that it's a key and not a button. Every stage is the real panel width.
+</p>
+<div class="themes"><button type="button" data-theme="neutral" aria-pressed="true">Neutral</button><button type="button" data-theme="hendri" aria-pressed="false">hendri</button></div>
+
+<div class="grid" id="footers"></div>
+<h2 class="part">The compare hint</h2>
+<p class="intro">Press and hold <b>\</b> on your keyboard while one of these is in view (or press and hold the pill). The rows switch to the original values.</p>
+<div class="grid" id="hints"></div>
+
+<div class="foot"><button id="copy">Copy picks</button><span id="status">Nothing ticked yet</span></div>
+
+<script>
+const I = {
+  reset: '<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3M3 2.5V5h2.5"/></svg>',
+  paste: '<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3" width="9" height="11" rx="1.5"/><path d="M6 3V2h4v1"/><path d="M6 7.5h4M6 10h3"/></svg>',
+  more: '<svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg>',
+  up: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10l4-4 4 4"/></svg>',
+};
+
+/* a stage: page slice + panel with two rows, a footer and an optional hint */
+function stage({ footer, hint = "", pageHint = "", headerIcons = false }) {
+  const el = document.createElement("div");
+  el.className = "stage";
+  el.innerHTML = `
+    <div class="page"><i style="height:18px;width:55%"></i><i style="height:10px;width:75%"></i><i style="flex:1"></i>${pageHint}</div>
+    <div class="panel">
+      ${headerIcons ? `<div class="hicons"><button type="button" aria-label="Paste values" data-act="paste">${I.paste}</button><button type="button" aria-label="Reset all" data-act="reset">${I.reset}</button></div>` : ""}
+      <div class="rows" style="${headerIcons ? "padding-top:54px" : ""}"><div class="card">
+        <div class="row"><span class="f" style="width:58%"></span><span>Tilt max</span><span class="n" data-v="14|12">14°</span></div>
+        <div class="row"><span class="f" style="width:34%"></span><span>Damping</span><span class="n" data-v="28|20">28</span></div>
+      </div></div>
+      <div class="ft">${footer}${hint}</div>
+    </div>`;
+  // behaviour shared by every mock
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    const act = b.dataset.act;
+    if (act === "copy") { const t = b.dataset.label ?? b.textContent; b.dataset.label = t; b.textContent = "Copied"; setTimeout(() => (b.textContent = t), 1200); }
+    if (act === "menu") el.querySelector(".menu")?.classList.toggle("open");
+    if (act === "reset" || act === "paste") { el.querySelector(".menu")?.classList.remove("open"); flash(el, act === "reset" ? "Reset all" : "Paste box opens"); }
+  });
+  document.addEventListener("click", (e) => { if (!el.contains(e.target)) el.querySelector(".menu")?.classList.remove("open"); });
+  return el;
+}
+function flash(el, text) {
+  const p = Object.assign(document.createElement("div"), { className: "pill", textContent: text });
+  p.style.cssText = "left:50%;top:40%;transform:translateX(-50%)";
+  el.append(p); setTimeout(() => p.remove(), 900);
+}
+
+const kbdHint = `<div class="hint" style="justify-content:center;margin-top:10px">Hold <kbd>\\</kbd> to compare with the original</div>`;
+
+const FOOTERS = [
+  ["f1", "1 · Copy plus two icon buttons", "One row: Copy values fills the width, Reset and Paste become square icon buttons beside it with a tooltip on hover. Same height, one line, no link underneath.",
+    stage({ footer: `<div class="btnrow"><button class="pri" style="flex:1" data-act="copy">Copy values</button>
+      <button class="ico" data-act="paste" aria-label="Paste values">${I.paste}<span class="tip">Paste values</span></button>
+      <button class="ico" data-act="reset" aria-label="Reset all">${I.reset}<span class="tip">Reset all</span></button></div>` })],
+  ["f2", "2 · Split button", "Only one button visible. Its arrow opens Paste values and Reset all above it. The calmest footer; the two rare actions are one click further away.",
+    stage({ footer: `<div class="split"><button class="pri" data-act="copy">Copy values</button><button class="pri" data-act="menu" aria-label="More actions">${I.up}</button></div>
+      <div class="menu"><button data-act="paste">Paste values</button><button data-act="reset">Reset all</button></div>` })],
+  ["f3", "3 · One toolbar", "All three in a single grouped bar: Reset and Paste as quiet text buttons, Copy values as the filled segment. Reads as one control instead of a stack.",
+    stage({ footer: `<div class="bar3"><button data-act="reset">Reset</button><button data-act="paste">Paste</button><button class="pri" data-act="copy">Copy values</button></div>` })],
+  ["f4", "4 · Copy plus a ⋯ menu", "Copy values and a ⋯ button. The menu holds Paste values, Reset all and the compare shortcut, so the shortcut is written down somewhere without taking space.",
+    stage({ footer: `<div class="btnrow"><button class="pri" style="flex:1" data-act="copy">Copy values</button><button class="ico" data-act="menu" aria-label="More actions">${I.more}</button></div>
+      <div class="menu"><button data-act="paste">Paste values</button><button data-act="reset">Reset all</button><hr><div class="hint">Hold <kbd>\\</kbd> to compare</div></div>` })],
+  ["f5", "5 · Secondary actions up top", "The footer is only Copy values. Paste and Reset move to small icons in the panel's header, next to collapse, where tools usually keep them.",
+    stage({ headerIcons: true, footer: `<button class="pri" style="width:100%" data-act="copy">Copy values</button>` })],
+  ["f6", "6 · Copy with text actions under it", "Copy values full width, and Reset all and Paste values as two quiet text buttons side by side underneath, both the same weight. Closest to now, but balanced.",
+    stage({ footer: `<button class="pri" style="width:100%" data-act="copy">Copy values</button>
+      <div style="display:flex;justify-content:center;gap:4px;margin-top:6px"><button class="ghostb" data-act="reset">Reset all</button><button class="ghostb" data-act="paste">Paste values</button></div>` })],
+];
+
+/* compare hint placements: each stage reacts to a held \ key (or holding its pill) */
+const base = `<div class="btnrow"><button class="pri" style="flex:1" data-act="copy">Copy values</button>
+  <button class="ico" data-act="paste" aria-label="Paste values">${I.paste}<span class="tip">Paste values</span></button>
+  <button class="ico" data-act="reset" aria-label="Reset all">${I.reset}<span class="tip">Reset all</span></button></div>`;
+const pill = (style) => `<div class="pill cmp" style="${style}"><span class="lbl">Hold</span> <kbd>\\</kbd> <span class="lbl2">to compare</span></div>`;
+const HINTS = [
+  ["h1", "A · Floating pill on the page, by the panel", "Appears at the bottom of the page, just left of the panel, once you've changed something. Turns solid and reads 'Showing the original' while held.",
+    stage({ footer: base, pageHint: pill("right:12px;bottom:12px") })],
+  ["h2", "B · Floating pill, top of the page", "The same pill at the top of the page by the panel's edge, near the title. Out of the way of content that usually sits at the bottom.",
+    stage({ footer: base, pageHint: pill("right:12px;top:12px") })],
+  ["h3", "C · A line in the footer", "No floating element: one quiet line under the buttons. Always there, never covers the page.",
+    stage({ footer: base, hint: kbdHint })],
+  ["h4", "D · Pill over the panel's rows", "Floats at the bottom of the panel, above the footer, only once something changed. Stays inside the panel, so it never covers the page you're judging.",
+    stage({ footer: base })],
+];
+
+function option(host, id, name, line, body) {
+  const el = document.createElement("section");
+  el.className = "opt";
+  el.innerHTML = `<div class="meta"><h3>${name}</h3><p>${line}</p></div>`;
+  el.append(body);
+  const pick = document.createElement("div");
+  pick.className = "pickrow";
+  pick.innerHTML = `<label><input type="checkbox" data-id="${id}"> Pick</label><textarea data-note="${id}" placeholder="Note"></textarea>`;
+  el.append(pick);
+  host.append(el);
+  return el;
+}
+FOOTERS.forEach(([id, n, l, s]) => option(document.getElementById("footers"), id, n, l, s));
+HINTS.forEach(([id, n, l, s]) => {
+  const el = option(document.getElementById("hints"), id, n, l, s);
+  if (id === "h4") s.querySelector(".panel").insertAdjacentHTML("beforeend", pill("left:50%;transform:translateX(-50%);bottom:86px"));
+});
+
+/* compare: hold \ or a pill; every hint stage swaps its numbers */
+let comparing = false;
+function compare(on) {
+  if (on === comparing) return;
+  comparing = on;
+  document.querySelectorAll("#hints .n").forEach((n) => {
+    const [mine, orig] = n.dataset.v.split("|");
+    n.textContent = (on ? orig : mine) + (n.closest(".row").querySelector("span:nth-child(2)").textContent === "Tilt max" ? "°" : "");
+    n.closest(".row").querySelector(".f").style.width = on ? (n.textContent.startsWith("12") ? "50%" : "26%") : (n.textContent.startsWith("14") ? "58%" : "34%");
+  });
+  document.querySelectorAll(".pill.cmp").forEach((p) => {
+    p.classList.toggle("on", on);
+    p.querySelector(".lbl").textContent = on ? "Showing the original" : "Hold";
+    p.querySelector("kbd").style.display = on ? "none" : "";
+    p.querySelector(".lbl2").textContent = on ? "" : "to compare";
+  });
+}
+addEventListener("keydown", (e) => { if (e.key === "\\" && !e.repeat && !e.target.closest?.("textarea")) { e.preventDefault(); compare(true); } });
+addEventListener("keyup", (e) => { if (e.key === "\\") compare(false); });
+document.addEventListener("pointerdown", (e) => { if (e.target.closest(".pill.cmp")) compare(true); });
+document.addEventListener("pointerup", () => compare(false));
+
+/* theme switch */
+document.querySelectorAll(".themes button").forEach((b) => b.addEventListener("click", () => {
+  document.body.className = b.dataset.theme;
+  document.querySelectorAll(".themes button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+}));
+
+/* picks */
+const status = document.getElementById("status");
+const picks = () => [...document.querySelectorAll("[data-id]")].map((c) => ({ option: c.closest(".opt").querySelector("h3").textContent, picked: c.checked,
+  note: document.querySelector(`[data-note="${c.dataset.id}"]`).value.trim() })).filter((p) => p.picked || p.note);
+document.addEventListener("input", () => { const n = picks().filter((p) => p.picked).length; status.textContent = n ? `${n} picked` : "Nothing ticked yet"; });
+document.getElementById("copy").addEventListener("click", async () => {
+  const json = JSON.stringify(picks(), null, 2);
+  let ok = false;
+  try { await navigator.clipboard.writeText(json); ok = true; } catch {
+    const ta = Object.assign(document.createElement("textarea"), { value: json });
+    ta.style.cssText = "position:fixed;opacity:0"; document.body.append(ta); ta.focus(); ta.select();
+    try { ok = document.execCommand("copy"); } catch {}
+    ta.remove();
+  }
+  status.textContent = ok ? "Copied. Paste it in chat." : "Copy was blocked: tell me your picks in chat.";
+});
+</script>
+</body>
+</html>
