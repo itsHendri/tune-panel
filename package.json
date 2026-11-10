@@ -1,0 +1,21 @@
+{
+  "name": "tune-panel",
+  "version": "0.1.0",
+  "description": "A dev-time panel for tuning feel values (springs, easing, tilt, shader numbers), themed per brand. Never ships.",
+  "type": "module",
+  "main": "tune-panel.js",
+  "exports": {
+    ".": "./tune-panel.js",
+    "./themes/*": "./themes/*"
+  },
+  "files": ["tune-panel.js", "themes"],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT",
+  "keywords": ["tuning", "tweak", "dev-tools", "web-component", "spring", "easing"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/itsHendri/tune-panel.git"
+  }
+}

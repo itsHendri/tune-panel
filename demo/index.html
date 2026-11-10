@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tune-panel demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Brand themes name these fonts; a shadow root can't load fonts, so the page does. -->
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fragment+Mono&family=Archivo:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{--bg:#f6f6f4;--ink:#1b1b1d;--dim:#5d5d59;--hair:#dcdcd7;--accent:#574cff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,sans-serif;padding:40px 40px 80px}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+  p{margin:0 0 16px;color:var(--dim);max-width:620px}
+  code{font:13px ui-monospace,Menlo,monospace}
+  nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 32px}
+  nav a{padding:6px 12px;border:1px solid var(--hair);border-radius:6px;color:var(--ink);text-decoration:none;background:#fff}
+  nav a[aria-current=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .grid{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}
+  .card{width:min(340px,100%);border-radius:var(--r,12px);background:#fff;padding:14px;outline:1px solid var(--hair);
+        box-shadow:0 18px 40px rgb(0 0 0 / var(--shadow,.2));will-change:transform}
+  .card .pic{aspect-ratio:1.25;border-radius:calc(var(--r,12px) - 6px);background:linear-gradient(135deg,var(--tint),#fff 140%)}
+  .card h2{font-size:16px;margin:12px 0 2px}
+  .card p{font-size:14px;margin:0}
+</style>
+</head>
+<body>
+<h1>tune-panel demo</h1>
+<p>Hover a card: it tilts on a spring. <b>Replay</b> reruns the entrance. Every value on the right is bound to one plain
+  object, <code>CFG</code>, that this page reads each frame. Press <b>Copy values</b> for the JSON.</p>
+<nav id="themes" aria-label="Panel theme"></nav>
+
+<div class="grid" id="grid"></div>
+
+<script type="module">
+import { tune } from "../tune-panel.js";
+
+/* ---------------------------------------------------------------- the page's own config */
+const CFG = {
+  tilt: { max: 12, push: true, axis: "both", perspective: 1000 },
+  spring: { stiffness: 420, damping: 20, mass: 1 },
+  enter: { duration: 600, ease: [0.22, 1, 0.36, 1], distance: 24, stagger: 80 },
+  look: { tint: "#574cff", radius: 12, shadow: 0.2 },
+};
+
+/* ---------------------------------------------------------------- theme links (page UI, not the panel) */
+const params = new URLSearchParams(location.search);
+const theme = params.get("theme") ?? "neutral";
+const scheme = params.get("scheme") ?? "auto";
+const nav = document.getElementById("themes");
+for (const t of Object.keys(tune.themes)) for (const sc of ["auto", "dark"]) {
+  const a = document.createElement("a");
+  a.href = `?theme=${t}&scheme=${sc}`;
+  a.textContent = sc === "auto" ? t : `${t} dark`;
+  if (t === theme && sc === scheme) a.setAttribute("aria-current", "true");
+  nav.append(a);
+}
+
+/* ---------------------------------------------------------------- cards */
+const grid = document.getElementById("grid");
+const cards = ["Shhhcribble", "Lollipop Carousel", "Archive"].map((title) => {
+  const el = document.createElement("article");
+  el.className = "card";
+  el.innerHTML = `<div class="pic"></div><h2>${title}</h2><p>A card that tilts toward the pointer.</p>`;
+  grid.append(el);
+  const S = { el, rx: 0, ry: 0, vrx: 0, vry: 0, trx: 0, try_: 0, rect: null };
+  el.addEventListener("pointerenter", () => { S.rect = el.getBoundingClientRect(); });
+  el.addEventListener("pointermove", (e) => {
+    if (!S.rect) return;
+    const nx = (e.clientX - S.rect.left - S.rect.width / 2) / (S.rect.width / 2);
+    const ny = (e.clientY - S.rect.top - S.rect.height / 2) / (S.rect.height / 2);
+    const s = CFG.tilt.push ? 1 : -1;
+    S.trx = CFG.tilt.axis === "y" ? 0 : -ny * CFG.tilt.max * s;
+    S.try_ = CFG.tilt.axis === "x" ? 0 : nx * CFG.tilt.max * s;
+  });
+  el.addEventListener("pointerleave", () => { S.trx = 0; S.try_ = 0; S.rect = null; });
+  return S;
+});
+
+let last = 0;
+function frame(t) {
+  const dt = Math.min(0.032, last ? (t - last) / 1000 : 0.016);
+  last = t;
+  const { stiffness: k, damping: c, mass: m } = CFG.spring;
+  document.documentElement.style.setProperty("--tint", CFG.look.tint);
+  document.documentElement.style.setProperty("--r", CFG.look.radius + "px");
+  document.documentElement.style.setProperty("--shadow", CFG.look.shadow);
+  for (const S of cards) {
+    S.vrx += ((-k * (S.rx - S.trx) - c * S.vrx) / m) * dt; S.rx += S.vrx * dt;
+    S.vry += ((-k * (S.ry - S.try_) - c * S.vry) / m) * dt; S.ry += S.vry * dt;
+    S.el.style.transform = `perspective(${CFG.tilt.perspective}px) rotateX(${S.rx.toFixed(3)}deg) rotateY(${S.ry.toFixed(3)}deg)`;
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+function replay() {
+  cards.forEach((S, i) => S.el.animate(
+    [{ opacity: 0, translate: `0 ${CFG.enter.distance}px` }, { opacity: 1, translate: "0 0" }],
+    { duration: CFG.enter.duration, delay: i * CFG.enter.stagger, easing: `cubic-bezier(${CFG.enter.ease})`, fill: "backwards" },
+  ));
+}
+replay();
+
+/* ---------------------------------------------------------------- the panel: one import, one call */
+const hovered = () => cards.reduce((a, b) => (Math.abs(b.rx) + Math.abs(b.ry) > Math.abs(a.rx) + Math.abs(a.ry) ? b : a));
+tune(CFG, {
+  rotateX: { type: "readout", get: () => hovered().rx.toFixed(1) + "°" },
+  rotateY: { type: "readout", get: () => hovered().ry.toFixed(1) + "°" },
+  Replay: replay,
+  tilt: {
+    max: { min: 0, max: 20, step: 0.5, unit: "°", label: "Tilt max" },
+    push: { label: "Push away" },
+    axis: { type: "select", options: ["x", "y", "both"] },
+    perspective: { min: 200, max: 2400, step: 50, unit: "px" },
+  },
+  spring: { type: "spring", stiffness: [60, 800, 10], damping: [4, 60, 1], mass: [0.2, 4, 0.1] },
+  enter: {
+    _label: "Entrance",
+    duration: { min: 100, max: 1500, step: 10, unit: "ms" },
+    ease: "easing",
+    distance: { min: 0, max: 80, step: 1, unit: "px" },
+    stagger: { min: 0, max: 300, step: 10, unit: "ms" },
+  },
+  look: { _collapsed: true, radius: [0, 32, 1], shadow: [0, 1, 0.01] },
+}, { title: "Hover tilt", theme, scheme, fps: true });
+</script>
+</body>
+</html>
